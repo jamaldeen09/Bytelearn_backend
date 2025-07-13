@@ -27,8 +27,11 @@ const server = http.createServer(app);
 
 export const io = new Server(server, {
   cors: {
-    origin: "http://localhost:3000",
-  },
+    origin: [
+      "http://localhost:3000",
+      "https://bytelearn-online-school.onrender.com"
+    ]
+  }
 });
 
 io.use((socket, next) => {
