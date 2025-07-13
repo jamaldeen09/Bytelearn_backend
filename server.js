@@ -28,7 +28,8 @@ export const io = new Server(server, {
   cors: {
     origin: [
       "http://localhost:3000",
-      "https://bytelearn-online-school.onrender.com"
+      "https://bytelearn-online-school.onrender.com",
+
     ],
     credentials: true,
   }
@@ -459,7 +460,7 @@ io.on("connection", async (socket) => {
 app.use(express.json());
 app.use(passport.initialize());
 app.use(cors({
-  origin: ["https://bytelearn-online-school-frontend.vercel.app", "http://localhost:3000"],
+  origin: ["https://bytelearn-online-school-frontend.vercel.app", "http://localhost:3000", "https://bytelearn-online-school.onrender.com"],
   credentials: true
 }))
 app.use(authRouter);
