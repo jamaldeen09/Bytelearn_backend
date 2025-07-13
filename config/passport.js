@@ -10,7 +10,9 @@ passport.use(
     {
       clientID: process.env.CLIENT_ID,
       clientSecret: process.env.CLIENT_SECRET,
-      callbackURL: `${process.env.NEXT_PUBLIC_BACKEND_URL}/auth/google/callback`,
+      callbackURL: process.env.NODE_ENV === "production"
+  ? "https://bytelearn-online-school-backend.onrender.com/auth/google/callback"
+  : "http://localhost:4080/auth/google/callback",
       passReqToCallback: true,
     },
     async (req, accessToken, refreshToken, profile, done) => {

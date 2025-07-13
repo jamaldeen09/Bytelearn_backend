@@ -17,7 +17,7 @@ import {
   validationMiddleware,
   verifyAccessToken,
   verifyPasswordResetToken,
-} from "../middlewares/auth.js";
+} from "../middlewares/auth.js"; 
 import { body, checkSchema } from "express-validator";
 
 export const authRouter = express.Router();
