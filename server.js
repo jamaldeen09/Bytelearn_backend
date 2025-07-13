@@ -34,6 +34,10 @@ export const io = new Server(server, {
   }
 });
 
+app.use(cors({
+  origin: ["https://bytelearn-online-school-frontend.vercel.app", "http://localhost:3000"]
+}))
+
 io.use((socket, next) => {
   const token = socket.handshake.auth.token;
   if (!token) {
