@@ -33,10 +33,10 @@ export const googleAuth = async (req, res) => {
     const user = req.user;
 
     const token = createAccessToken(user._id);
-    res.redirect(`http://localhost:3000/client/auth/success?token=${token}`);
+    res.redirect(`https://bytelearn-online-school.onrender.com/client/auth/success?token=${token}`);
   } catch (error) {
     console.error(error);
-    res.redirect("http://localhost:3000/client/auth/login");
+    res.redirect(`https://bytelearn-online-school.onrender.com/client/auth/login`);
   }
 };
 
@@ -45,10 +45,10 @@ export const googleRedirect = async (req, res) => {
     const user = req.user;
 
     const token = createAccessToken(user._id);
-    res.redirect(`http://localhost:3000/client/auth/success?token=${token}`);
+    res.redirect(`https://bytelearn-online-school.onrender.com/client/auth/success?token=${token}`);
   } catch (error) {
     console.error(error);
-    res.redirect("http://localhost:3000/client/auth/login");
+    res.redirect("https://bytelearn-online-school.onrender.com/client/auth/login");
   }
 };
 

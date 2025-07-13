@@ -59,8 +59,6 @@ io.use((socket, next) => {
 });
 
 
-// `;
-
 io.on("connection", async (socket) => {
   try {
     const currentUser = await User.findById(socket.user.userId)
