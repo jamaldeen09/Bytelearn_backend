@@ -17,7 +17,6 @@ import Notification from "./models/Notification.js";
 import ChatRoom from "./models/ChatRoom.js"
 import Message from "./models/Message.js"
 
-
 dotenv.config();   
 
 const URL = process.env.MONGO_URL;
@@ -34,9 +33,7 @@ export const io = new Server(server, {
   }
 });
 
-app.use(cors({
-  origin: ["https://bytelearn-online-school-frontend.vercel.app", "http://localhost:3000"]
-}))
+
 
 io.use((socket, next) => {
   const token = socket.handshake.auth.token;
@@ -460,11 +457,9 @@ io.on("connection", async (socket) => {
 
 app.use(express.json());
 app.use(passport.initialize());
-app.use(
-  cors({
-    origin: "http://localhost:3000",
-  })
-);
+app.use(cors({
+  origin: ["https://bytelearn-online-school-frontend.vercel.app", "http://localhost:3000"]
+}))
 app.use(authRouter);
 app.use(courseRouter);
 app.use(chatRouter);
