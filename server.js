@@ -16,8 +16,9 @@ import { generateFriendRequest, responseGenerator } from "./utils/utils.js";
 import Notification from "./models/Notification.js";
 import ChatRoom from "./models/ChatRoom.js"
 import Message from "./models/Message.js"
+import uploadRouter from "./routes/uploadRouter.js";
 
-dotenv.config();   
+dotenv.config();
 
 const URL = process.env.MONGO_URL;
 const PORT = process.env.NEXT_PUBLIC_PORT;
@@ -46,7 +47,7 @@ io.use((socket, next) => {
     });
     return;
   }
- 
+
   jwt.verify(token, process.env.JWT_SECRET, (err, decoded) => {
     if (err) {
       socket.emit("invalid-token", {
@@ -76,49 +77,105 @@ io.on("connection", async (socket) => {
     console.log("reached here")
 
     socket.on("disconnect", async () => {
-      console.log(`${currentUser.fullName} has disconnected from byteLearn website`)
-      currentUser.isOnline = false
-      await currentUser.save()
-    })
+      await User.findByIdAndUpdate(socket.user.userId, { isOnline: false });
+    });
 
     socket.on(events.JOIN_ROOM, ({ room }) => {
       socket.join(room.toString());
       console.log(currentUser.fullName, `Has joined ${room}`);
     })
 
+    // socket.on(events.ADD_FRIEND, async ({ firstName, lastName }) => {
+    //   console.log(firstName, lastName)
+    //   const friend = await User.findOne({ fullName: `${firstName} ${lastName}` })  
+    //   if (!friend) {
+    //     socket.emit(events.NOT_FOUND, responseGenerator(false, "Person you are trying to add does not exist"))
+    //     return;
+    //   }
+    //   const currentUserIdStr = currentUser._id.toString();
+    //   const friendIdStr = friend._id.toString();
+
+    //   if (currentUserIdStr === friendIdStr) {
+    //     socket.emit(events.NOT_ALLOWED, responseGenerator(false, "You cannot add yourself as a friend"));
+    //     return;
+    //   }
+
+    //   const alreadyFriends =
+    //     currentUser.friends.some(id => id.toString() === friendIdStr) ||
+    //     friend.friends.some(id => id.toString() === currentUserIdStr);
+
+    //   if (alreadyFriends) {
+    //     socket.emit(events.NOT_ALLOWED, responseGenerator(false, `You and ${friend.fullName} are already friends`));
+    //     return;
+    //   }
+
+    //   if (!alreadyFriends) {
+
+    //     setTimeout(() => {
+    //       io.to(friend._id.toString()).emit(events.SEND_NOTIFICATION, responseGenerator(true, `${currentUser.fullName} sent you a friend request`));
+    //     }, 2000)
+
+    //     socket.emit(events.NEW_NOTIFICATION, responseGenerator(false, `A friend request has been sent to ${friend.fullName}`));
+
+    //     // create new notification
+    //     const notificationSent = await Notification.create({
+    //       sender: currentUser._id,
+    //       content: generateFriendRequest(currentUser.fullName, currentUser._id),
+    //       receiver: friend._id,
+    //       isSeen: false,
+    //       sentAt: Date.now(),
+    //       briefContent: `${currentUser.fullName} wants to be friends!`
+    //     })
+    //     friend.notifications.push(notificationSent._id)
+    //     await friend.save();
+    //     return;
+    //   }
+    // })
     socket.on(events.ADD_FRIEND, async ({ firstName, lastName }) => {
-      console.log(firstName, lastName)
-      const friend = await User.findOne({ fullName: `${firstName} ${lastName}` })
-      if (!friend) {
-        socket.emit(events.NOT_FOUND, responseGenerator(false, "Person you are trying to add does not exist"))
-        return;
-      }
-      const currentUserIdStr = currentUser._id.toString();
-      const friendIdStr = friend._id.toString();
+      try {
+        console.log(firstName, lastName);
+        const friend = await User.findOne({ fullName: `${firstName} ${lastName}` });
 
-      if (currentUserIdStr === friendIdStr) {
-        socket.emit(events.NOT_ALLOWED, responseGenerator(false, "You cannot add yourself as a friend"));
-        return;
-      }
+        if (!friend) {
+          socket.emit(events.NOT_FOUND, responseGenerator(false, "Person you are trying to add does not exist"));
+          return;
+        }
 
-      const alreadyFriends =
-        currentUser.friends.some(id => id.toString() === friendIdStr) ||
-        friend.friends.some(id => id.toString() === currentUserIdStr);
+        // Ensure both users are populated with their friends lists
+        const populatedCurrentUser = await User.findById(currentUser._id).populate('friends');
+        const populatedFriend = await User.findById(friend._id).populate('friends');
 
-      if (alreadyFriends) {
-        socket.emit(events.NOT_ALLOWED, responseGenerator(false, `You and ${friend.fullName} are already friends`));
-        return;
-      }
+        const currentUserIdStr = currentUser._id.toString();
+        const friendIdStr = friend._id.toString();
 
-      if (!alreadyFriends) {
+        if (currentUserIdStr === friendIdStr) {
+          socket.emit(events.NOT_ALLOWED, responseGenerator(false, "You cannot add yourself as a friend"));
+          return;
+        }
 
+        // Check if friendship already exists (only need to check one side)
+        const alreadyFriends = populatedCurrentUser.friends.some(f =>
+          f._id.toString() === friendIdStr
+        );
+
+        if (alreadyFriends) {
+          socket.emit(events.NOT_ALLOWED, responseGenerator(false, `You and ${friend.fullName} are already friends`));
+          return;
+        }
+
+        // Send notification
         setTimeout(() => {
-          io.to(friend._id.toString()).emit(events.SEND_NOTIFICATION, responseGenerator(true, `${currentUser.fullName} sent you a friend request`));
-        }, 2000)
+          io.to(friend._id.toString()).emit(
+            events.SEND_NOTIFICATION,
+            responseGenerator(true, `${currentUser.fullName} sent you a friend request`)
+          );
+        }, 2000);
 
-        socket.emit(events.NEW_NOTIFICATION, responseGenerator(false, `A friend request has been sent to ${friend.fullName}`));
+        socket.emit(events.NEW_NOTIFICATION,
+          responseGenerator(false, `A friend request has been sent to ${friend.fullName}`)
+        );
 
-        // create new notification
+        // Create new notification
         const notificationSent = await Notification.create({
           sender: currentUser._id,
           content: generateFriendRequest(currentUser.fullName, currentUser._id),
@@ -126,12 +183,16 @@ io.on("connection", async (socket) => {
           isSeen: false,
           sentAt: Date.now(),
           briefContent: `${currentUser.fullName} wants to be friends!`
-        })
-        friend.notifications.push(notificationSent._id)
-        await friend.save();
-        return;
+        });
+ 
+        populatedFriend.notifications.push(notificationSent._id);
+        await populatedFriend.save();
+
+      } catch (error) {
+        console.error("Error in ADD_FRIEND:", error);
+        socket.emit(events.ERROR_OCCURED, responseGenerator(false, "Failed to process friend request"));
       }
-    })
+    });
 
     // seen notification
     socket.on(events.SEEN_NOTIFICATION, async ({ notifId }) => {
@@ -225,11 +286,12 @@ io.on("connection", async (socket) => {
 
     })
 
+
     socket.on(events.REJECT_FRIEND_REQUEST, async ({ senderId, notificationId }) => {
       if (!senderId || !notificationId) {
         socket.emit(events.NOT_ALLOWED, responseGenerator(false, "Please provide a senderId and notificationId"));
         return;
-      } 
+      }
 
       const notification = await Notification.findOneAndUpdate(
         { _id: notificationId, receiver: socket.user.userId },
@@ -283,6 +345,18 @@ io.on("connection", async (socket) => {
         return;
       }
 
+
+      const isFriends = currentUser.friends.some((usersFriend) => 
+        usersFriend._id.toString() === friend._id.toString()
+      );
+      console.log(`Friend Status: `, isFriends)
+
+      if (!isFriends) {
+        const data = { isFriends: false };
+        socket.emit(events.NO_LONGER_FRIENDS, data);
+        return;
+      }
+
       const isExsistingRoom = await ChatRoom.findOne({
         $and: [
           { participants: { $all: [currentUser._id, friend._id] } },
@@ -295,6 +369,8 @@ io.on("connection", async (socket) => {
           { path: "receiverId", select: "fullName avatar" }
         ]
       });
+
+    
 
       const data = {
         information: {
@@ -316,13 +392,15 @@ io.on("connection", async (socket) => {
             fullName: msg.receiverId.fullName,
             avatar: msg.receiverId.avatar
           },
+          imageUrl: msg.imageUrl,
           roomId: msg.roomId,
           status: msg.status,
           content: msg.content,
           sentAt: msg.sentAt,
           deliveredAt: msg.deliveredAt,
           readAt: msg.readAt
-        })) || []
+        })) || [],
+        roomId: isExsistingRoom?.roomId?.toString() || roomId,
       };
 
       if (isExsistingRoom) {
@@ -345,11 +423,12 @@ io.on("connection", async (socket) => {
         return;
       }
     })
+    
 
     // Message sending
-    socket.on(events.SEND_MESSAGE, async ({ receiverId, content }) => {
-      if (!receiverId || !content) {
-        socket.emit(events.NOT_ALLOWED, responseGenerator(false, "A receiverId and content must be provided"))
+    socket.on(events.SEND_MESSAGE, async ({ receiverId, content, imageUrl }) => {
+      if (!receiverId || (!content && !imageUrl)) {
+        socket.emit(events.NOT_ALLOWED, responseGenerator(false, "A receiverId and content or image must be provided"))
         return;
       }
 
@@ -365,6 +444,7 @@ io.on("connection", async (socket) => {
       }).populate({
         path: "messages",
         model: "Message",
+        select: "senderId receiverId roomId status content imageUrl sentAt deliveredAt readAt",
         populate: [
           {
             path: "senderId",
@@ -395,12 +475,14 @@ io.on("connection", async (socket) => {
           avatar: msg.receiverId.avatar
         },
         roomId: msg.roomId,
+        imageUrl: msg.imageUrl,
         status: msg.status,
         content: msg.content,
         sentAt: msg.sentAt,
         deliveredAt: msg.deliveredAt,
         readAt: msg.readAt
       }));
+
 
       socket.emit(events.MESSAGE_HISTORY, {
         roomId: exsistingRoom.roomId,
@@ -413,14 +495,17 @@ io.on("connection", async (socket) => {
         roomId: exsistingRoom.roomId,
         status: "sent",
         content,
+        imageUrl,
         sentAt: new Date(),
       });
+
 
       const populatedMessage = await Message.findById(newMessage._id)
         .populate('senderId', 'fullName avatar')
         .populate('receiverId', 'fullName avatar')
         .lean();
 
+      console.log(`Populated Message's image url: `, populatedMessage.imageUrl)
       exsistingRoom.messages.push(newMessage._id);
       await exsistingRoom.save();
 
@@ -442,14 +527,66 @@ io.on("connection", async (socket) => {
           content: populatedMessage.content,
           sentAt: populatedMessage.sentAt,
           deliveredAt: populatedMessage.deliveredAt,
-          readAt: populatedMessage.readAt
+          readAt: populatedMessage.readAt,
+          imageUrl: populatedMessage.imageUrl,
         },
         room: exsistingRoom.roomId
       };
+      console.log(data.message.imageUrl)
 
 
       io.to(exsistingRoom.roomId).emit(events.RECEIVED_MESSAGE, data);
     })
+
+    socket.on(events.MARK_MESSAGES_AS_READ, async ({ roomId, friendId }) => {
+      if (!roomId || !friendId) return;
+
+      const unreadMessages = await Message.find({
+        roomId,
+        senderId: friendId,
+        receiverId: currentUser._id,
+        status: { $ne: "read" }
+      });
+
+      const readAt = new Date();
+
+      await Message.updateMany(
+        { _id: { $in: unreadMessages.map(msg => msg._id) } },
+        {
+          $set: {
+            status: "read",
+            readAt
+          }
+        }
+      );
+
+      socket.emit(events.MESSAGES_MARKED_AS_READ, {
+        roomId,
+        messages: unreadMessages.map(msg => ({
+          _id: msg._id,
+          content: msg.content,
+          status: "read",
+          readAt
+        }))
+      });
+    });
+
+    socket.on(events.REMOVE_FRIEND, async ({ friendId }) => {
+      if (!friendId) {
+        socket.emit(events.NOT_ALLOWED, responseGenerator(false, "Please provide a friend Id"));
+        return;
+      }
+
+      // Corrected filter condition
+      const newFriends = currentUser.friends.filter(friend =>
+        friend._id.toString() !== friendId.toString()
+      );
+
+      currentUser.friends = newFriends;
+      await currentUser.save();
+
+      socket.emit(events.REMOVED_FRIEND, responseGenerator(true, "Friend removed"));
+    });
   } catch (err) {
     console.error(err)
     socket.emit(events.ERROR_OCCURED, { success: false, msg: "Server Error" })
@@ -466,6 +603,7 @@ app.use(cors({
 app.use(authRouter);
 app.use(courseRouter);
 app.use(chatRouter);
+app.use(uploadRouter);
 
 mongoose
   .connect(URL ? URL : "")

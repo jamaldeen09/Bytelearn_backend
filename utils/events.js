@@ -28,5 +28,10 @@ export const events = {
     SEND_MESSAGE: "send-message",
     RECEIVED_MESSAGE: "received-message",
     MESSAGE_STATUS_UPDATE: "message-status-updated",
-    MESSAGE_HISTORY: "messages-history"
+    MESSAGE_HISTORY: "messages-history",
+    MARK_MESSAGES_AS_READ: "mark-messages-as-read",
+    MESSAGES_MARKED_AS_READ: "messages-marked-as-read",
+    NO_LONGER_FRIENDS: "no-longer-friends",
+    REMOVE_FRIEND: "remove-friend",
+    REMOVED_FRIEND: "removed-friend"
   };

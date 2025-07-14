@@ -15,6 +15,9 @@ const messageSchema = new mongoose.Schema({
         type: String,
         required: true,
     },
+    imageUrl: {
+        type: String
+    },
     status: {
         type: String,
         enum: ["sent", "delivered", "read"],
@@ -22,7 +25,6 @@ const messageSchema = new mongoose.Schema({
     },
     content: {
         type: String, 
-        required: true
     },
 
     sentAt: {

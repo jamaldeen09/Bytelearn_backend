@@ -36,7 +36,7 @@ io.use((socket, next) => {
   if (!token) {
     socket.emit("unauthorized-access", {
       success: false,
-      msg: "Unauthorized access",
+      msg: "Unauthorized access", 
     });
     return;
   }

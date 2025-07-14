@@ -245,7 +245,7 @@ export const login = async (req, res) => {
     if (!isValidPassword)
       return res.status(406).send({ success: false, msg: "Invalid credentials" })
     
-    return res.status(200).send({ success: true, msg: "Account found", token: accessToken });
+    return res.status(200).send({ success: true, msg: "Account found", token: accessToken, role: exsistingAcc.role });
   } catch (err) {
     console.error(err);
     return res.status(500).send({ success: false, msg: "Server Error" });
