@@ -24,7 +24,6 @@ export const getFriends = async (req, res) => {
        
 
         const friends = exsistingAcc.friends; 
-        console.log(friends)
         const lastMessages = await Promise.all(
             friends.map(async (friend) => {
                 const message = await Message.findOne({

@@ -33,5 +33,8 @@ export const events = {
     MESSAGES_MARKED_AS_READ: "messages-marked-as-read",
     NO_LONGER_FRIENDS: "no-longer-friends",
     REMOVE_FRIEND: "remove-friend",
-    REMOVED_FRIEND: "removed-friend"
+    REMOVED_FRIEND: "removed-friend",
+    REMOVED_FRIEND_NOTIFICATION: "removed-friend-notification",
+    TYPING: "TYPING",
+    STOP_TYPING: "STOP_TYPING",
   };

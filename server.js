@@ -70,10 +70,10 @@ io.on("connection", async (socket) => {
       socket.emit(events.NOT_FOUND, responseGenerator(false, "Account was not found"))
       return;
     }
+    
 
     console.log(`${currentUser.fullName} has connected to  byteLearn website`)
-    currentUser.isOnline = true;
-    await currentUser.save()
+    await User.findByIdAndUpdate(socket.user.userId, { isOnline: true });
     console.log("reached here")
 
     socket.on("disconnect", async () => {
@@ -84,53 +84,19 @@ io.on("connection", async (socket) => {
       socket.join(room.toString());
       console.log(currentUser.fullName, `Has joined ${room}`);
     })
-
-    // socket.on(events.ADD_FRIEND, async ({ firstName, lastName }) => {
-    //   console.log(firstName, lastName)
-    //   const friend = await User.findOne({ fullName: `${firstName} ${lastName}` })  
-    //   if (!friend) {
-    //     socket.emit(events.NOT_FOUND, responseGenerator(false, "Person you are trying to add does not exist"))
-    //     return;
-    //   }
-    //   const currentUserIdStr = currentUser._id.toString();
-    //   const friendIdStr = friend._id.toString();
-
-    //   if (currentUserIdStr === friendIdStr) {
-    //     socket.emit(events.NOT_ALLOWED, responseGenerator(false, "You cannot add yourself as a friend"));
-    //     return;
-    //   }
-
-    //   const alreadyFriends =
-    //     currentUser.friends.some(id => id.toString() === friendIdStr) ||
-    //     friend.friends.some(id => id.toString() === currentUserIdStr);
-
-    //   if (alreadyFriends) {
-    //     socket.emit(events.NOT_ALLOWED, responseGenerator(false, `You and ${friend.fullName} are already friends`));
-    //     return;
-    //   }
-
-    //   if (!alreadyFriends) {
-
-    //     setTimeout(() => {
-    //       io.to(friend._id.toString()).emit(events.SEND_NOTIFICATION, responseGenerator(true, `${currentUser.fullName} sent you a friend request`));
-    //     }, 2000)
-
-    //     socket.emit(events.NEW_NOTIFICATION, responseGenerator(false, `A friend request has been sent to ${friend.fullName}`));
-
-    //     // create new notification
-    //     const notificationSent = await Notification.create({
-    //       sender: currentUser._id,
-    //       content: generateFriendRequest(currentUser.fullName, currentUser._id),
-    //       receiver: friend._id,
-    //       isSeen: false,
-    //       sentAt: Date.now(),
-    //       briefContent: `${currentUser.fullName} wants to be friends!`
-    //     })
-    //     friend.notifications.push(notificationSent._id)
-    //     await friend.save();
-    //     return;
-    //   }
-    // })
+    socket.on(events.TYPING, ({ receiverId }) => {
+      socket.to(receiverId.toString()).emit(events.TYPING, {
+        senderId: socket.user.userId,
+      });
+    });
+    
+    socket.on(events.STOP_TYPING, ({ receiverId }) => {
+      console.log(`${socket.user.userId} is typing to ${receiverId}`);
+      socket.to(receiverId.toString()).emit(events.STOP_TYPING, {
+        senderId: socket.user.userId,
+      });
+    });
+  
     socket.on(events.ADD_FRIEND, async ({ firstName, lastName }) => {
       try {
         console.log(firstName, lastName);
@@ -570,23 +536,6 @@ io.on("connection", async (socket) => {
         }))
       });
     });
-
-    socket.on(events.REMOVE_FRIEND, async ({ friendId }) => {
-      if (!friendId) {
-        socket.emit(events.NOT_ALLOWED, responseGenerator(false, "Please provide a friend Id"));
-        return;
-      }
-
-      // Corrected filter condition
-      const newFriends = currentUser.friends.filter(friend =>
-        friend._id.toString() !== friendId.toString()
-      );
-
-      currentUser.friends = newFriends;
-      await currentUser.save();
-
-      socket.emit(events.REMOVED_FRIEND, responseGenerator(true, "Friend removed"));
-    });
   } catch (err) {
     console.error(err)
     socket.emit(events.ERROR_OCCURED, { success: false, msg: "Server Error" })
@@ -596,6 +545,10 @@ io.on("connection", async (socket) => {
 
 app.use(express.json());
 app.use(passport.initialize());
+app.use((req, res, next) => {
+  req.io = io;
+  next();
+});
 app.use(cors({
   origin: ["https://bytelearn-online-school-frontend.vercel.app", "http://localhost:3000", "https://bytelearn-online-school.onrender.com"],
   credentials: true
@@ -622,7 +575,7 @@ mongoose
     // const deleted = await Course.findOneAndDelete({ title: "Mastering React.js: From Fundamentals to Advanced Patterns" })
     // console.log(deleted)
     // console.log("Added new course")
-
+ 
     // const deleted = await User.deleteOne({ fullName: "Jamal Omotoyosi" })
     // const omotoyosi = await User.deleteOne({ fullName: "Olatunji Omotoyosi" })
     // const distopian = await User.deleteOne({ fullName: "disptopian disto" })
