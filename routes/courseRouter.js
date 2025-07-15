@@ -8,6 +8,7 @@ import {
   getProgessData,
   getSingleCourseDetails,
   markSkillAsCompleted,
+  unenrollFromCourse,
   updateLastVisitedSkill,
 } from "../controllers/courseController.js";
 import {
@@ -78,7 +79,7 @@ courseRouter.get(
   getCompletedSkills
 );
 
-courseRouter.post("/api/update-last-visited", verifyAccessToken, 
+courseRouter.post("/api/update-last-visited", verifyAccessToken,
   body('courseId').notEmpty().isString(),
   body('topicId').notEmpty().isString(),
   body('skillId').notEmpty().isString(),
@@ -97,3 +98,5 @@ courseRouter.get(
   verifyAccessToken,
   getEnrolledCourses,
 )
+
+courseRouter.delete("/api/enrolled-courses/:courseId", verifyAccessToken, unenrollFromCourse)

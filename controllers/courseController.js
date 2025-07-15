@@ -23,6 +23,7 @@ export const fetchCourses = async (req, res) => {
         topics: course.topics,
         imageUrl: course.imageUrl,
         category: course.category,
+        likes: course.likes,
       };
     });
 
@@ -282,7 +283,7 @@ export const updateLastVisitedSkill = async (req, res) => {
     });
   } catch (err) {
     console.error(err);
-    return res.status(500).send({ 
+    return res.status(500).send({
       success: false,
       msg: "Server error while updating last visited skill",
     });
@@ -292,7 +293,7 @@ export const updateLastVisitedSkill = async (req, res) => {
 export const getProgessData = async (req, res) => {
   try {
     const progress = await Progress.find({ student: req.user.userId })
-    .select('course completedSkills lastVisitedSkill isCompleted');
+      .select('course completedSkills lastVisitedSkill isCompleted');
 
     res.status(200).send({ progress });
   } catch (err) {
@@ -303,10 +304,78 @@ export const getProgessData = async (req, res) => {
 
 export const getEnrolledCourses = async (req, res) => {
   try {
-    const user = await User.findById(req.user.userId).populate('courses');
-    res.status(200).send({ courses: user.courses });
+    const progressEntries = await Progress.find({ student: req.user.userId })
+      .populate({
+        path: 'course',
+        populate: { path: 'creator', model: 'User' }
+      });
+
+    const courses = progressEntries.map((entry) => {
+      const course = entry.course;
+      return {
+        id: course._id,
+        title: course.title,
+        description: course.description,
+        imageUrl: course.imageUrl,
+        category: course.category,
+        topics: course.topics,
+        creator: {
+          fullName: course.creator.fullName,
+          email: course.creator.email,
+          profilePicture: course.creator.avatar,
+        },
+        isCompleted: entry.isCompleted,
+        lastVisitedSkill: entry.lastVisitedSkill,
+      };
+    });
+
+    res.status(200).send({ courses });
   } catch (err) {
     console.error(err);
     res.status(500).json({ msg: 'Server error' });
   }
 };
+
+export const unenrollFromCourse = async (req, res) => {
+  try {
+    const { courseId } = req.params;
+    const userId = req.user.userId;
+
+    
+    await User.findByIdAndUpdate(userId, {
+      $pull: { courses: courseId }
+    });
+
+    await Progress.deleteOne({ course: courseId, student: userId });
+
+    res.status(200).json({ msg: "Successfully unenrolled from course" });
+  } catch (err) {
+    console.error("Unenrollment failed:", err);
+    res.status(500).json({ msg: "Server error" });
+  }
+};
+
+export const getCoursesCreatedBySomeone = async (req, res) => {
+  try {
+    const { creatorsFullName } = req.data;
+    const exsistingCreator = await User.findOne({ fullName: creatorsFullName }).populate({ path: "courses", model: "Course "})
+    if (!exsistingCreator) 
+      return res.status(404).send({ success: false, msg: "Creator was not found" })
+
+    // id: string
+    // title: string,
+    // description: string,
+    // category: string,
+    // imageUrl: string,
+    // topics: topicSchema[];
+    // dateCreated: string;
+    // creator: CreatorSchema,
+    // isPublished: boolean,
+    // likes?: number,
+
+    const payload = exsistingCreator.courses.map(() => {})
+  } catch (err) {
+    console.error(err)
+    return res.status(500).send({ success: false, msg: "Server Error" })
+  }
+}
