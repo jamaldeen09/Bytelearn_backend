@@ -23,8 +23,6 @@ import { body, checkSchema } from "express-validator";
 import { cloudUploadMiddleware } from "../middlewares/cloudinary.js";
 export const authRouter = express.Router();
 
-const upload = multer();
-
 authRouter.get("/auth/google", (req, res, next) => {
   passport.authenticate("google", {
     scope: ["profile", "email"],
