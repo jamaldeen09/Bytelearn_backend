@@ -47,8 +47,8 @@ export const handler = async (req, res) => {
 
     const completion = await openai.chat.completions.create({
   
-      // openai/gpt-4o-mini
-      model: "google/gemma-3-27b-it:free",
+      
+      model: "openai/gpt-4o-mini",
       messages: [
         {
           role: "system",
