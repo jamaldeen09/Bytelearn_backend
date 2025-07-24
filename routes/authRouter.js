@@ -1,15 +1,16 @@
 import express from "express";
 import passport from "passport";
+import multer from "multer";
 import {
   googleRedirect,
-  studentSignup,
+  signup,
   getUsers,
-  instructorSignup,
   forgotPassword,
   otpVerification,
   changePassword,
   login,
   verifyUser,
+  changeAvatar,
 } from "../controllers/authController.js";
 import {
   loginSchema,
@@ -19,15 +20,14 @@ import {
   verifyPasswordResetToken,
 } from "../middlewares/auth.js"; 
 import { body, checkSchema } from "express-validator";
-
+import { cloudUploadMiddleware } from "../middlewares/cloudinary.js";
 export const authRouter = express.Router();
 
+const upload = multer();
 
 authRouter.get("/auth/google", (req, res, next) => {
-  const state = req.query.state || "student";
   passport.authenticate("google", {
     scope: ["profile", "email"],
-    state,
   })(req, res, next);
 });
 
@@ -45,15 +45,9 @@ authRouter.post(
   "/api/signup",
   checkSchema(userCreationSchema),
   validationMiddleware,
-  studentSignup
+  signup,
 );
 authRouter.get("/api/users", getUsers);
-authRouter.post(
-  "/api/instructorSignup",
-  checkSchema(userCreationSchema),
-  validationMiddleware,
-  instructorSignup
-);
 
 authRouter.post(
   "/api/forgot-password",
@@ -95,9 +89,16 @@ authRouter.post(
 
 authRouter.post(
   "/api/login",
+
   checkSchema(loginSchema),
   validationMiddleware,
   login
 );
 
 authRouter.get("/api/get-information", verifyAccessToken, verifyUser);
+authRouter.put(
+  "/api/change-avatar",
+  verifyAccessToken,
+  cloudUploadMiddleware,
+  changeAvatar
+);

@@ -12,11 +12,18 @@ import { chatRouter } from "./routes/chatRouter.js";
 import jwt from "jsonwebtoken";
 import { events } from "./utils/events.js";
 import User from "./models/User.js";
-import { generateFriendRequest, responseGenerator } from "./utils/utils.js";
+import { formatTimeAgo, generateFriendRequest, responseGenerator } from "./utils/utils.js";
 import Notification from "./models/Notification.js";
 import ChatRoom from "./models/ChatRoom.js"
 import Message from "./models/Message.js"
 import uploadRouter from "./routes/uploadRouter.js";
+import { cssMasteryCourse, exampleCourse, pythonCourse, reactCourse } from "./data/courseData.js";
+import Course from "./models/Course.js";
+import FeedbackRoom from "./models/FeedbackRoom.js";
+import Progress from "./models/Progress.js";
+import FeedbackMessage from "./models/FeedbackMessage.js";
+import aiRouter from "./routes/aiRouter.js";
+import bcrypt from "bcrypt"
 
 dotenv.config();
 
@@ -70,11 +77,11 @@ io.on("connection", async (socket) => {
       socket.emit(events.NOT_FOUND, responseGenerator(false, "Account was not found"))
       return;
     }
-    
+
 
     console.log(`${currentUser.fullName} has connected to  byteLearn website`)
     await User.findByIdAndUpdate(socket.user.userId, { isOnline: true });
-    console.log("reached here")
+
 
     socket.on("disconnect", async () => {
       await User.findByIdAndUpdate(socket.user.userId, { isOnline: false });
@@ -84,22 +91,31 @@ io.on("connection", async (socket) => {
       socket.join(room.toString());
       console.log(currentUser.fullName, `Has joined ${room}`);
     })
+    socket.on(events.JOIN_COURSE_ROOM, ({ room }) => {
+      socket.join(room);
+      console.log(`${socket.user.userId} joined feedback room: ${room}`);
+    });
+    socket.on(events.LEAVE_COURSE_ROOM, ({ room }) => {
+      socket.leave(room);
+      console.log(`${socket.user.userId} left feedback room: ${room}`);
+    });
+
     socket.on(events.TYPING, ({ receiverId }) => {
       socket.to(receiverId.toString()).emit(events.TYPING, {
         senderId: socket.user.userId,
       });
     });
-    
+
     socket.on(events.STOP_TYPING, ({ receiverId }) => {
       console.log(`${socket.user.userId} is typing to ${receiverId}`);
       socket.to(receiverId.toString()).emit(events.STOP_TYPING, {
         senderId: socket.user.userId,
       });
     });
-  
+
     socket.on(events.ADD_FRIEND, async ({ firstName, lastName }) => {
       try {
-        console.log(firstName, lastName);
+
         const friend = await User.findOne({ fullName: `${firstName} ${lastName}` });
 
         if (!friend) {
@@ -150,7 +166,7 @@ io.on("connection", async (socket) => {
           sentAt: Date.now(),
           briefContent: `${currentUser.fullName} wants to be friends!`
         });
- 
+
         populatedFriend.notifications.push(notificationSent._id);
         await populatedFriend.save();
 
@@ -312,10 +328,10 @@ io.on("connection", async (socket) => {
       }
 
 
-      const isFriends = currentUser.friends.some((usersFriend) => 
+      const isFriends = currentUser.friends.some((usersFriend) =>
         usersFriend._id.toString() === friend._id.toString()
       );
-      console.log(`Friend Status: `, isFriends)
+
 
       if (!isFriends) {
         const data = { isFriends: false };
@@ -336,7 +352,7 @@ io.on("connection", async (socket) => {
         ]
       });
 
-    
+
 
       const data = {
         information: {
@@ -389,153 +405,391 @@ io.on("connection", async (socket) => {
         return;
       }
     })
-    
 
-    // Message sending
     socket.on(events.SEND_MESSAGE, async ({ receiverId, content, imageUrl }) => {
-      if (!receiverId || (!content && !imageUrl)) {
-        socket.emit(events.NOT_ALLOWED, responseGenerator(false, "A receiverId and content or image must be provided"))
-        return;
-      }
+      try {
+        if (!receiverId || (!content && !imageUrl)) {
+          socket.emit(events.NOT_ALLOWED, responseGenerator(false, "A receiverId and content or image must be provided"));
+          return;
+        }
 
-      // check if user exists
-      const receiver = await User.findById(receiverId)
-      if (!receiver) {
-        socket.emit(events.NOT_FOUND, responseGenerator(false, "Receiver was not found"))
-        return;
-      }
-      // find a room with both participants
-      const exsistingRoom = await ChatRoom.findOne({
-        participants: { $all: [currentUser._id, receiver._id] }
-      }).populate({
-        path: "messages",
-        model: "Message",
-        select: "senderId receiverId roomId status content imageUrl sentAt deliveredAt readAt",
-        populate: [
-          {
-            path: "senderId",
-            select: "fullName avatar"
+        // Check if user exists
+        const receiver = await User.findById(receiverId);
+        if (!receiver) {
+          socket.emit(events.NOT_FOUND, responseGenerator(false, "Receiver was not found"));
+          return;
+        }
+
+        // Find room with both participants
+        const existingRoom = await ChatRoom.findOne({
+          participants: { $all: [currentUser._id, receiver._id] }
+        });
+
+        if (!existingRoom) {
+          socket.emit(events.NOT_FOUND, responseGenerator(false, "Room was not found"));
+          return;
+        }
+
+        // Create new message
+        const newMessage = await Message.create({
+          senderId: currentUser._id,
+          receiverId,
+          roomId: existingRoom.roomId,
+          status: "sent",
+          content,
+          imageUrl,
+          sentAt: new Date(),
+        });
+
+        // Add message to room
+        existingRoom.messages.push(newMessage._id);
+        await existingRoom.save();
+
+        // Populate message for sending to clients
+        const populatedMessage = await Message.findById(newMessage._id)
+          .populate('senderId', 'fullName avatar')
+          .populate('receiverId', 'fullName avatar')
+          .lean();
+
+        const data = {
+          message: {
+            _id: populatedMessage._id,
+            sender: {
+              _id: populatedMessage.senderId._id,
+              fullName: populatedMessage.senderId.fullName,
+              avatar: populatedMessage.senderId.avatar
+            },
+            receiver: {
+              _id: populatedMessage.receiverId._id,
+              fullName: populatedMessage.receiverId.fullName,
+              avatar: populatedMessage.receiverId.avatar
+            },
+            roomId: populatedMessage.roomId,
+            status: populatedMessage.status,
+            content: populatedMessage.content,
+            sentAt: populatedMessage.sentAt,
+            deliveredAt: populatedMessage.deliveredAt,
+            readAt: populatedMessage.readAt,
+            imageUrl: populatedMessage.imageUrl,
           },
-          {
-            path: "receiverId",
-            select: "fullName avatar"
-          }
-        ],
-        options: { sort: { createdAt: -1 } }
-      });
-      if (!exsistingRoom) {
-        socket.emit(events.NOT_FOUND, responseGenerator(false, "Room was not found"))
-        return;
+          room: existingRoom.roomId
+        };
+
+
+        io.to(existingRoom.roomId).emit(events.RECEIVED_MESSAGE, data);
+
+      } catch (error) {
+        console.error("Error in SEND_MESSAGE:", error);
+        socket.emit(events.ERROR_OCCURED, responseGenerator(false, "Failed to send message"));
       }
-
-      const formattedMessages = exsistingRoom.messages.map(msg => ({
-        _id: msg._id,
-        sender: {
-          _id: msg.senderId._id,
-          fullName: msg.senderId.fullName,
-          avatar: msg.senderId.avatar
-        },
-        receiver: {
-          _id: msg.receiverId._id,
-          fullName: msg.receiverId.fullName,
-          avatar: msg.receiverId.avatar
-        },
-        roomId: msg.roomId,
-        imageUrl: msg.imageUrl,
-        status: msg.status,
-        content: msg.content,
-        sentAt: msg.sentAt,
-        deliveredAt: msg.deliveredAt,
-        readAt: msg.readAt
-      }));
-
-
-      socket.emit(events.MESSAGE_HISTORY, {
-        roomId: exsistingRoom.roomId,
-        messages: formattedMessages,
-      });
-
-      const newMessage = await Message.create({
-        senderId: currentUser._id,
-        receiverId,
-        roomId: exsistingRoom.roomId,
-        status: "sent",
-        content,
-        imageUrl,
-        sentAt: new Date(),
-      });
-
-
-      const populatedMessage = await Message.findById(newMessage._id)
-        .populate('senderId', 'fullName avatar')
-        .populate('receiverId', 'fullName avatar')
-        .lean();
-
-      console.log(`Populated Message's image url: `, populatedMessage.imageUrl)
-      exsistingRoom.messages.push(newMessage._id);
-      await exsistingRoom.save();
-
-      const data = {
-        message: {
-          _id: populatedMessage._id,
-          sender: {
-            _id: populatedMessage.senderId._id,
-            fullName: populatedMessage.senderId.fullName,
-            avatar: populatedMessage.senderId.avatar
-          },
-          receiver: {
-            _id: populatedMessage.receiverId._id,
-            fullName: populatedMessage.receiverId.fullName,
-            avatar: populatedMessage.receiverId.avatar
-          },
-          roomId: populatedMessage.roomId,
-          status: populatedMessage.status,
-          content: populatedMessage.content,
-          sentAt: populatedMessage.sentAt,
-          deliveredAt: populatedMessage.deliveredAt,
-          readAt: populatedMessage.readAt,
-          imageUrl: populatedMessage.imageUrl,
-        },
-        room: exsistingRoom.roomId
-      };
-      console.log(data.message.imageUrl)
-
-
-      io.to(exsistingRoom.roomId).emit(events.RECEIVED_MESSAGE, data);
-    })
+    });
 
     socket.on(events.MARK_MESSAGES_AS_READ, async ({ roomId, friendId }) => {
       if (!roomId || !friendId) return;
 
-      const unreadMessages = await Message.find({
-        roomId,
-        senderId: friendId,
-        receiverId: currentUser._id,
-        status: { $ne: "read" }
-      });
+      const currentUserId = socket.user.userId;
 
-      const readAt = new Date();
 
       await Message.updateMany(
-        { _id: { $in: unreadMessages.map(msg => msg._id) } },
+        {
+          senderId: friendId,
+          receiverId: currentUserId,
+          status: { $ne: "read" }
+        },
         {
           $set: {
             status: "read",
-            readAt
+            readAt: new Date()
           }
         }
       );
 
-      socket.emit(events.MESSAGES_MARKED_AS_READ, {
-        roomId,
-        messages: unreadMessages.map(msg => ({
-          _id: msg._id,
-          content: msg.content,
-          status: "read",
-          readAt
-        }))
+      // Notify both clients
+      io.to(roomId).emit(events.MESSAGES_MARKED_AS_READ, {
+        friendId // Only need to send friendId now
       });
     });
+
+
+    socket.on(events.SEND_FEEDBACK, async ({ courseId, msg }) => {
+      if (!courseId || !msg) {
+        socket.emit(events.NOT_ALLOWED, responseGenerator(false, "A course Id and a message must be provided"));
+        return;
+      }
+
+      const foundFeedbackRoom = await FeedbackRoom.findOneAndUpdate({ course: courseId })
+
+      if (!foundFeedbackRoom) {
+        socket.emit(events.NOT_ALLOWED, responseGenerator(false, "Feedback room was not found"));
+        return;
+      }
+      const messagePayload = {
+        feedbackRoom: foundFeedbackRoom._id,
+        sender: await User.findById(socket.user.userId),
+        content: msg,
+      }
+
+      const newMessage = await FeedbackMessage.create(messagePayload);
+      const editWindowDuration = 30 * 60 * 1000; // 30 minutes in milliseconds
+      const editWindowEnd = new Date(Date.now() + editWindowDuration);
+
+      newMessage.editWindow = editWindowEnd
+      await newMessage.save()
+
+      foundFeedbackRoom.messages.push(newMessage._id);
+      await foundFeedbackRoom.save();
+
+
+      const messageSentToFrontend = await FeedbackMessage.findById(newMessage).populate({
+        path: "sender",
+        model: "User",
+        select: "fullName avatar",
+      })
+
+      const payload = {
+        _id: messageSentToFrontend._id,
+        sender: {
+          fullName: messageSentToFrontend.sender.fullName,
+          profilePicture: messageSentToFrontend.sender.avatar
+        },
+        text: messageSentToFrontend.content,
+        createdAt: formatTimeAgo(new Date(messageSentToFrontend.createdAt)),
+        isEdited: msg?.isEdited,
+        editedAt: msg?.editedAt,
+        editWindow: msg?.editWindow
+      }
+      const room = `feedback-${foundFeedbackRoom.course}`;
+      io.to(room).emit(events.FEEDBACK_SENT, payload);
+    })
+
+    // Feedback history
+    socket.on(events.GET_FEEDBACK_HISTORY, async ({ courseId }) => {
+      if (!courseId) {
+        socket.emit(events.NOT_ALLOWED, responseGenerator(false, "A course Id must be provided"));
+        return;
+      }
+
+      const foundFeedbackRoom = await FeedbackRoom.findOneAndUpdate({ course: courseId }).populate({
+        path: "messages",
+        model: "FeedbackMessage",
+        populate: {
+          path: "sender",
+          model: "User",
+          select: "fullName avatar"
+        }
+      });
+
+      if (!foundFeedbackRoom) {
+        socket.emit(events.NOT_ALLOWED, responseGenerator(false, "Feedback room was not found"));
+        return;
+      }
+
+      socket.join(foundFeedbackRoom.course._id)
+      const payload = foundFeedbackRoom.messages
+        .sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt))
+        .map((msg) => ({
+          _id: msg._id,
+          sender: {
+            _id: msg.sender?._id,
+            fullName: msg.sender?.fullName,
+            profilePicture: msg.sender?.avatar
+          },
+          text: msg?.content,
+          createdAt: msg?.createdAt,
+          isEdited: msg?.isEdited,
+          editedAt: msg?.editedAt,
+          editWindow: msg?.editWindow,
+          likes: msg?.likes || 0,
+          likedBy: msg?.likedBy || []
+        })) || [];
+      socket.emit(events.FEEDBACK_HISTORY_SENT, payload)
+    })
+
+    socket.on(events.DELETE_FEEDBACK_MESSAGE, async ({ courseId }) => {
+
+      try {
+        if (!courseId) {
+          socket.emit(events.NOT_ALLOWED, responseGenerator(false, "Course id must be provided"));
+          return;
+        }
+
+        let foundFeedbackRoom = await FeedbackRoom.findOne({ course: new mongoose.Types.ObjectId(courseId) }).populate({
+          path: "messages",
+          model: "FeedbackMessage",
+        })
+
+        if (!foundFeedbackRoom) {
+          socket.emit(events.NOT_FOUND, responseGenerator(false, "FeedbackRoom was not found"));
+          return;
+        }
+
+        const currUser = await User.findById(socket.user.userId);
+        const foundFeedbackMessage = foundFeedbackRoom.messages.find((msg) => msg.sender._id.equals(currUser._id));
+
+
+        foundFeedbackRoom.messages = foundFeedbackRoom.messages.filter((msg) => msg !== foundFeedbackMessage);
+        await foundFeedbackRoom.save();
+
+        socket.emit(events.DELETED_FEEDBACK_MESSAGE, responseGenerator(true, "Feedback message deleted"));
+      } catch (err) {
+        console.error(err)
+        socket.emit(events.ERROR_OCCURED, responseGenerator(false, "Server error"))
+      }
+    })
+
+    socket.on(events.EDIT_MESSAGE, async ({ msgToEdit, courseId, newContent }) => {
+      try {
+        if (!msgToEdit || !courseId || !newContent) {
+          socket.emit(events.NOT_ALLOWED, responseGenerator(false, "Please provide a message id a course id and some new content for the message"));
+          return;
+        }
+
+        let foundFeedbackRoom = await FeedbackRoom.findOne({ course: new mongoose.Types.ObjectId(courseId) }).populate({
+          path: "messages",
+          model: "FeedbackMessage",
+        })
+
+        let messageToEdit = foundFeedbackRoom.messages.find((msg) => msg._id.equals(msgToEdit));
+
+
+        if (!messageToEdit) {
+          socket.emit(events.NOT_FOUND, responseGenerator(false, "The message you are trying to edit does not exist"));
+          return;
+        }
+
+        const now = new Date();
+        const editWindowExpired = messageToEdit.editWindow &&
+          now > new Date(messageToEdit.editWindow);
+
+        if (editWindowExpired) {
+          socket.emit(events.NOT_ALLOWED,
+            responseGenerator(false, "Edit window has expired")
+          );
+          return;
+        }
+
+        // Initialize edit window if this is the first edit
+        if (!messageToEdit.editWindow) {
+          const editWindowDuration = 30 * 60 * 1000; // 30 minutes in milliseconds
+          messageToEdit.editWindow = new Date(now.getTime() + editWindowDuration);
+        }
+
+        messageToEdit.content = newContent;
+        messageToEdit.isEdited = true;
+        messageToEdit.editedAt = Date.now();
+
+        await messageToEdit.save()
+        await foundFeedbackRoom.save();
+
+        socket.emit(events.MESSAGE_EDITED, responseGenerator(true, "Message Edited"));
+      } catch (err) {
+        console.error(err)
+        socket.emit(events.ERROR_OCCURED, responseGenerator(false, "Server error"))
+      }
+    })
+
+    // socket.on(events.LIKE_FEEDBACK_MESSAGE, async ({ messageId, courseId, userId, like }) => {
+    //   try {
+    //     // Find the feedback message
+    //     console.log("Received Data: ", { messageId, courseId, userId, like })
+    //     const message = await FeedbackMessage.findById(messageId);
+    //     if (!message) {
+    //       socket.emit(events.NOT_FOUND, responseGenerator(false, "Message not found"));
+    //       return;
+    //     }
+
+    //     const user = await User.findById(userId);
+    //     if (!user) {
+    //       socket.emit(events.NOT_FOUND, responseGenerator(false, "User not found"));
+    //       return;
+    //     }
+
+    //     // Check if user already liked the message
+    //     const alreadyLiked = message.likedBy.includes(user._id);
+
+    //     if (like && !alreadyLiked) {
+
+    //       message.likes += 1;
+    //       message.likedBy.push(user._id);
+    //     } else if (!like && alreadyLiked) {
+
+    //       message.likes = Math.max(0, message.likes - 1);
+    //       message.likedBy = message.likedBy.filter(id => !id.equals(user._id));
+    //     }
+
+    //     await message.save();
+
+    //     const room = `feedback-${courseId}`;
+    //     io.to(room).emit(events.FEEDBACK_MESSAGE_LIKED, {
+    //       messageId,
+    //       likes: message.likes,
+    //       liked: like
+    //     });
+
+    //   } catch (err) {
+    //     console.error("Error in LIKE_FEEDBACK_MESSAGE:", err);
+    //     socket.emit(events.ERROR_OCCURED, responseGenerator(false, "Failed to process like"));
+    //   }
+    // });
+    socket.on(events.LIKE_FEEDBACK_MESSAGE, async ({ messageId, courseId, userId, like }) => {
+      try {
+        // 1. Input Validation
+        if (!messageId || !courseId || !userId || typeof like !== 'boolean') {
+          socket.emit(events.INVALID_INPUT, responseGenerator(false, "Invalid input parameters"));
+          return;
+        }
+
+        // 2. Find the feedback message with proper error handling
+        const message = await FeedbackMessage.findById(messageId).lean();
+        if (!message) {
+          socket.emit(events.NOT_FOUND, responseGenerator(false, "Message not found"));
+          return;
+        }
+
+        // 3. Verify user exists
+        const user = await User.findById(userId).select('_id').lean();
+        if (!user) {
+          socket.emit(events.NOT_FOUND, responseGenerator(false, "User not found"));
+          return;
+        }
+
+        // 4. Convert likedBy to ObjectId for comparison
+        const likedByObjectIds = message.likedBy.map(id => id.toString());
+        const alreadyLiked = likedByObjectIds.includes(user._id.toString());
+
+        
+        const update = {
+          $inc: { likes: like ? 1 : -1 },
+          [like ? '$addToSet' : '$pull']: { likedBy: user._id }
+        };
+
+        // 6. Prevent negative like counts
+        if (!like && message.likes <= 0) {
+          socket.emit(events.NOT_ALLOWED, responseGenerator(false, "Like count cannot be negative"));
+          return;
+        }
+
+        // 7. Atomic update operation
+        const updatedMessage = await FeedbackMessage.findByIdAndUpdate(
+          messageId,
+          update,
+          { new: true }
+        );
+
+        // 8. Broadcast update to room
+        const room = `feedback-${courseId}`;
+        io.to(room).emit(events.FEEDBACK_MESSAGE_LIKED, {
+          messageId,
+          likes: updatedMessage.likes,
+          liked: like,
+          userId: user._id
+        });
+
+      } catch (err) {
+        console.error("Error in LIKE_FEEDBACK_MESSAGE:", err);
+        socket.emit(events.ERROR_OCCURED, responseGenerator(false, "Failed to process like action"));
+      }
+    })
   } catch (err) {
     console.error(err)
     socket.emit(events.ERROR_OCCURED, { success: false, msg: "Server Error" })
@@ -557,35 +811,23 @@ app.use(authRouter);
 app.use(courseRouter);
 app.use(chatRouter);
 app.use(uploadRouter);
+app.use(aiRouter)
 
 mongoose
   .connect(URL ? URL : "")
   .then(async () => {
-    // const title = "Mastering JavaScript for Web Development"
-    // const otherTitle = "Mastering Modern CSS Development"
-    // const deleteCourse = await Course.findOneAndDelete({$and: [{title: title}, {title: otherTitle} ]})
 
-    // console.log(deleteCourse, "has been deleted")
+    //  const updatedCount = await Course.updateMany({
+    //    peopleEnrolled: {$exists: false}
+    //  }, {
+    //   $set: {  peopleEnrolled: [] }
+    //  })
 
-    // await Course.insertOne(cssMasteryCourse)
-    // await Course.insertOne(pythonCourse)
-
-    // await Course.insertOne(reactCourse)
-    // console.log("react course added")
-    // const deleted = await Course.findOneAndDelete({ title: "Mastering React.js: From Fundamentals to Advanced Patterns" })
-    // console.log(deleted)
-    // console.log("Added new course")
- 
-    // const deleted = await User.deleteOne({ fullName: "Jamal Omotoyosi" })
-    // const omotoyosi = await User.deleteOne({ fullName: "Olatunji Omotoyosi" })
-    // const distopian = await User.deleteOne({ fullName: "disptopian disto" })
-    // // console.log(deleted)
-    // // console.log(omotoyosi)
-    // console.log(distopian)
 
     server.listen(PORT, () =>
       console.log(`Server is running on port http://localhost:${PORT}`)
     );
+
   })
   .catch((err) => {
     console.error(err);

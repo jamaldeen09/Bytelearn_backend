@@ -52,7 +52,7 @@ export const googleRedirect = async (req, res) => {
   }
 };
 
-export const studentSignup = async (req, res) => {
+export const signup = async (req, res) => {
   try {
     const { firstName, lastName, email, password } = req.data;
 
@@ -73,45 +73,6 @@ export const studentSignup = async (req, res) => {
       fullName: `${firstName} ${lastName}`,
       email,
       password: hashedPassword,
-      role: "student",
-    });
-    if (!newUser)
-      return res
-        .status(500)
-        .send({ success: false, msg: "Account creation failed" });
-
-    const accessToken = createAccessToken(newUser._id);
-    return res
-      .status(201)
-      .send({ success: true, msg: "Account created", token: accessToken });
-  } catch (err) {
-    console.error(err);
-    return res.status(500).send({ success: false, msg: "Server error" });
-  }
-};
-
-export const instructorSignup = async (req, res) => {
-  try {
-    const { firstName, lastName, email, password } = req.data;
-
-    // check if users account exists
-    const exsistingAcc = await User.findOne({
-      $or: [{ fullName: `${firstName} ${lastName}` }, { email }],
-    });
-    if (exsistingAcc)
-      return res
-        .status(406)
-        .send({
-          success: false,
-          msg: "Account already exisists. Please log in",
-        });
-
-    const hashedPassword = await bcrypt.hash(password, 12);
-    const newUser = await User.create({
-      fullName: `${firstName} ${lastName}`,
-      email,
-      password: hashedPassword,
-      role: "instructor",
     });
     if (!newUser)
       return res
@@ -226,7 +187,9 @@ export const changePassword = async (req, res) => {
 export const login = async (req, res) => {
   try {
     const { email, password } = req.data
+
     // check for account
+
     const exsistingAcc = await User.findOne({ email })
     if (!exsistingAcc)
       return res.status(404).send({ success: false, msg: "Account was not found. Please sign up" })
@@ -245,7 +208,7 @@ export const login = async (req, res) => {
     if (!isValidPassword)
       return res.status(406).send({ success: false, msg: "Invalid credentials" })
     
-    return res.status(200).send({ success: true, msg: "Account found", token: accessToken, role: exsistingAcc.role });
+    return res.status(200).send({ success: true, msg: "Account found", token: accessToken });
   } catch (err) {
     console.error(err);
     return res.status(500).send({ success: false, msg: "Server Error" });
@@ -267,7 +230,16 @@ export const verifyUser = async (req, res) => {
     }
 
     const exsistingAcc = await User.findById(userId)
-    
+      .populate({
+        path: "createdCourses",
+        model: "Course",
+        populate: { path: "creator", model: "User" }
+      })
+      .populate({
+        path: "enrolledCourses",
+        model: "Course",
+        populate: { path: "creator", model: "User" }
+      });
  
     if (!exsistingAcc)
       return res.status(404).send({ success: false, msg: "Account was not found" })
@@ -276,8 +248,8 @@ export const verifyUser = async (req, res) => {
       email: exsistingAcc.email,
       fullName: exsistingAcc.fullName,
       friends: exsistingAcc.friends,
-      role: exsistingAcc.role,
-      courses: exsistingAcc.courses,
+      createdCourses: exsistingAcc.createdCourses,
+      enrolledCourses: exsistingAcc.enrolledCourses,
       _id: exsistingAcc._id,
       bio: exsistingAcc.bio,
       avatar: exsistingAcc.avatar
@@ -292,4 +264,41 @@ export const verifyUser = async (req, res) => {
 }
 export const getUsers = async (req, res) => {
   return res.json({ users: await User.find() });
+};
+
+
+export const changeAvatar = async (req, res) => {
+  try {
+    if (!req.user.userId || !req.avatarUrl) {
+      return res.status(400).json({
+        success: false,
+        msg: "Missing required fields"
+      });
+    }
+
+    const user = await User.findByIdAndUpdate(
+      req.user.userId,
+      { avatar: req.avatarUrl },
+      { new: true }
+    ).select("avatar");
+
+    if (!user) {
+      return res.status(404).json({
+        success: false,
+        msg: "User not found"
+      });
+    }
+
+    res.status(200).json({
+      success: true,
+      msg: "Avatar updated successfully",
+      avatarUrl: user.avatar
+    });
+  } catch (err) {
+    console.error("Avatar update error:", err);
+    res.status(500).json({
+      success: false,
+      msg: "Server error during avatar update"
+    });
+  }
 };

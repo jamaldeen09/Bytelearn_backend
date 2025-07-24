@@ -34,12 +34,12 @@ chatRouter.delete("/api/friends/:friendId", verifyAccessToken, async (req, res) 
     // Delete all messages between them (both ways)
     await Message.deleteMany({
       $or: [
-        { "sender._id": userId, "receiver._id": friendId },
-        { "sender._id": friendId, "receiver._id": userId }
+        { senderId: userId, receiverId: friendId },
+        { senderId: friendId, receiverId: userId }
       ]
     });
 
-    // Optionally: Delete chatroom if you're storing that separately
+
     await ChatRoom.deleteOne({
       participants: { $all: [userId, friendId] }
     });
@@ -53,3 +53,6 @@ chatRouter.delete("/api/friends/:friendId", verifyAccessToken, async (req, res) 
     res.status(500).json({ success: false, message: "Error removing friend" });
   }
 });
+
+chatRouter.get("/api/messages", async (req, res) => res.json(await Message.find()))
+

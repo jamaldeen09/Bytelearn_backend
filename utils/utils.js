@@ -296,3 +296,39 @@ export const generateFriendRequest = (
   // Combine all parts
   return notificationContent + buttonsHTML + closingHTML;
 };
+
+// utils/dateFormatter.js
+export const formatTimeAgo = (date) => {
+  const now = new Date();
+  const diffInSeconds = Math.floor((now - date) / 1000);
+  
+  // Less than 1 minute
+  if (diffInSeconds < 60) {
+    return `${diffInSeconds} seconds ago`;
+  }
+  
+  // Less than 1 hour
+  const diffInMinutes = Math.floor(diffInSeconds / 60);
+  if (diffInMinutes < 60) {
+    return `${diffInMinutes} minute${diffInMinutes === 1 ? '' : 's'} ago`;
+  }
+  
+  // Less than 24 hours
+  const diffInHours = Math.floor(diffInMinutes / 60);
+  if (diffInHours < 24) {
+    return `${diffInHours} hour${diffInHours === 1 ? '' : 's'} ago`;
+  }
+  
+  // Less than 30 days
+  const diffInDays = Math.floor(diffInHours / 24);
+  if (diffInDays < 30) {
+    return `${diffInDays} day${diffInDays === 1 ? '' : 's'} ago`;
+  }
+  
+  // Older dates - format as "Month Day, Year"
+  return date.toLocaleDateString('en-US', {
+    year: 'numeric',
+    month: 'long',
+    day: 'numeric'
+  });
+};

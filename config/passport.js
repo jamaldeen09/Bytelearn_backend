@@ -22,9 +22,7 @@ passport.use(
         const lastName = profile.name?.familyName;
         const avatar = profile.photos?.[0].value;
         const googleId = profile.id;
-
-        const role = req.query.state || "student";
-        console.log(req.query.state);
+    
 
         let user = await User.findOne({ email });
         if (!user) {
@@ -33,7 +31,6 @@ passport.use(
             email,
             googleId,
             avatar,
-            role,
           });
         }
 

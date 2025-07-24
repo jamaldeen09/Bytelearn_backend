@@ -1,6 +1,7 @@
 import { matchedData, validationResult } from "express-validator"
 import jwt from "jsonwebtoken"
 import dotenv from "dotenv"
+import Course from "../models/Course.js";
 
 dotenv.config();
 
@@ -15,6 +16,21 @@ export const validationMiddleware = (req, res, next) => {
 
 export const createAccessToken = (id) => {
     return jwt.sign({ userId: id }, process.env.JWT_SECRET, { expiresIn: "3d" })
+}
+
+export const isExsistingCourse = async (req, res, next) => {
+    try {
+        const { promptCourseName, promptCourseDescription } = req.data;
+
+        const isExists = await Course.findOne({ $or: [{title: promptCourseName}, {description: promptCourseDescription}] })
+        if (isExists)
+            return res.status(406).send({ success: false, msg: "A course with this name or description already exists." })
+
+        next();
+    } catch (err) {
+        console.error(err)
+        return res.status(500).send({ success: false, msg: "Server Error" })
+    }
 }
 
 export const verifyAccessToken = (req, res, next) => {

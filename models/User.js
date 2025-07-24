@@ -6,21 +6,24 @@ const userSchema = new mongoose.Schema({
     password: String,
     googleId: { type: String }, 
     avatar: { type: String, default: "https://www.shutterstock.com/image-vector/default-avatar-profile-icon-social-600nw-1677509740.jpg" },
-    role: {
-        type: String,
-        required: true,
-        enum: ["student", "instructor"],
-    },
+    
     friends: [{
         type: mongoose.Schema.Types.ObjectId,
         ref: "User",
         default: [],
     }],
-    courses: [{
-        type: mongoose.Schema.Types.ObjectId,
-        ref: "Course",
-        default: [],
-    }],
+    createdCourses: [
+        {
+          type: mongoose.Schema.Types.ObjectId,
+          ref: "Course",
+        },
+      ],
+    enrolledCourses: [
+        {
+          type: mongoose.Schema.Types.ObjectId,
+          ref: "Course",
+        },
+    ],
     isOnline: {
         type: Boolean,
         default: false
@@ -39,9 +42,14 @@ const userSchema = new mongoose.Schema({
     },
     notifications: {
         type: [ mongoose.Schema.Types.ObjectId ],
-        ref: "Notfication",
-        defaut: [],
-    }
+        ref: "Notification",
+        default: [],
+    },
+    likedCourses: [{
+        type: mongoose.Schema.Types.ObjectId,
+        ref: 'Course',
+        default: []
+    }],
 })
 
 export default mongoose.model("User", userSchema)

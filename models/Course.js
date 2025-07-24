@@ -14,10 +14,10 @@ export const skillSchema = new mongoose.Schema({
 const topicSchema = new mongoose.Schema({
   title: { type: String, required: true },
   skills: [ skillSchema ],
-  quiz: [quizSchema],
+  quiz: [quizSchema], 
 });
 
-const courseSchema = new mongoose.Schema({
+const courseSchema = new mongoose.Schema({    
   title: { type: String, required: true },
   description: { type: String, required: true },
   category: { type: String, required: true },
@@ -26,7 +26,19 @@ const courseSchema = new mongoose.Schema({
   dateCreated: { type: Date, default: Date.now },
   creator: { type: mongoose.Schema.Types.ObjectId, ref: "User" },
   isPublished: { type: Boolean, default: false },
-  likes: { type: Number, defaut: 0 }
-});
+  likes: { type: Number, default: 0 },      
+  enrollments: { type: Number, default: 0 },
+
+  feedbackRoom: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: "FeedbackRoom",
+    default: null, 
+  },
+
+  peopleEnrolled: {
+    type: [ mongoose.Schema.Types.ObjectId ],
+    default: [],
+  },
+});                                  
 
 export default mongoose.model("Course", courseSchema);

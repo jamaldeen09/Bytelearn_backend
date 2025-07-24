@@ -37,4 +37,21 @@ export const events = {
     REMOVED_FRIEND_NOTIFICATION: "removed-friend-notification",
     TYPING: "TYPING",
     STOP_TYPING: "STOP_TYPING",
-  };
+
+    SEND_FEEDBACK: "send-feedback",
+    FEEDBACK_SENT: "feedback-sent",
+    GET_FEEDBACK_HISTORY: "get-feedback-history",
+    FEEDBACK_HISTORY_SENT: "feedback-history-sent",
+
+    JOIN_COURSE_ROOM: "join-course-room",
+    LEAVE_COURSE_ROOM: "leave-course-room",
+
+    DELETE_FEEDBACK_MESSAGE: "delete-feedback-message",
+    DELETED_FEEDBACK_MESSAGE: "deleted-feedback-message",
+
+    EDIT_MESSAGE: "edit-message",
+    MESSAGE_EDITED: "message-edited",
+
+    LIKE_FEEDBACK_MESSAGE: "like-feedback-message",
+    FEEDBACK_MESSAGE_LIKED: "feedback-message-liked",
+  }; 

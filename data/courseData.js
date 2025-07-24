@@ -8,7 +8,453 @@ export const exampleCourse = {
   topics: [
     {
       title: "JavaScript Fundamentals",
-      skills: [
+      skills: [,
+        {
+          skillTitle: "ES6 Classes Mastery",
+          content: `
+            <section class="skill-content">
+              <h2 class="text-3xl font-bold mb-6 text-gray-800 border-b pb-2">ES6 Classes: Modern OOP in JavaScript</h2>
+              
+              <div class="mb-8 bg-blue-50 p-6 rounded-lg border border-blue-200">
+                <h3 class="text-2xl font-semibold mb-4 text-blue-600">Class Fundamentals</h3>
+                <p class="mb-4 text-gray-700 leading-relaxed">
+                  ES6 classes are syntactic sugar over JavaScript's prototypal inheritance, providing cleaner syntax for object creation and inheritance.
+                </p>
+                
+                <div class="grid md:grid-cols-2 gap-6 mb-6">
+                  <div class="bg-white p-5 shadow rounded-lg">
+                    <h4 class="font-bold mb-3">Basic Class Syntax</h4>
+                    <pre class="bg-gray-800 text-green-400 p-4 rounded"><code>class Rectangle {
+          constructor(height, width) {
+            this.height = height;
+            this.width = width;
+          }
+          
+          // Instance method
+          calcArea() {
+            return this.height * this.width;
+          }
+          
+          // Static method
+          static createSquare(size) {
+            return new Rectangle(size, size);
+          }
+        }</code></pre>
+                  </div>
+                  
+                  <div class="bg-white p-5 shadow rounded-lg">
+                    <h4 class="font-bold mb-3">Under the Hood</h4>
+                    <pre class="bg-gray-800 text-green-400 p-4 rounded"><code>// What actually happens:
+        function Rectangle(height, width) {
+          this.height = height;
+          this.width = width;
+        }
+        
+        Rectangle.prototype.calcArea = function() {
+          return this.height * this.width;
+        };
+        
+        Rectangle.createSquare = function(size) {
+          return new Rectangle(size, size);
+        };</code></pre>
+                  </div>
+                </div>
+                
+                <div class="bg-yellow-50 p-4 rounded-lg border-l-4 border-yellow-400">
+                  <p class="font-medium text-yellow-800">Key Insight:</p>
+                  <p class="text-gray-700">Classes don't introduce new OOP model - they provide cleaner syntax for existing prototypal inheritance.</p>
+                </div>
+              </div>
+              
+              <div class="mb-10">
+                <h3 class="text-2xl font-semibold mb-4 text-blue-600">Advanced Class Features</h3>
+                
+                <div class="mb-6 grid md:grid-cols-2 gap-6">
+                  <div class="bg-white p-5 shadow rounded-lg">
+                    <h4 class="text-xl font-medium mb-3 text-gray-800">Getters & Setters</h4>
+                    <pre class="bg-gray-800 text-green-400 p-4 rounded"><code>class Temperature {
+          constructor(celsius) {
+            this.celsius = celsius;
+          }
+          
+          get fahrenheit() {
+            return this.celsius * 1.8 + 32;
+          }
+          
+          set fahrenheit(value) {
+            this.celsius = (value - 32) / 1.8;
+          }
+        }
+        
+        const temp = new Temperature(25);
+        console.log(temp.fahrenheit); // 77
+        temp.fahrenheit = 86;
+        console.log(temp.celsius);    // 30</code></pre>
+                  </div>
+                  
+                  <div class="bg-white p-5 shadow rounded-lg">
+                    <h4 class="text-xl font-medium mb-3 text-gray-800">Private Fields (#)</h4>
+                    <pre class="bg-gray-800 text-green-400 p-4 rounded"><code>class BankAccount {
+          #balance = 0;  // Private field
+          
+          deposit(amount) {
+            this.#balance += amount;
+          }
+          
+          get balance() {
+            return this.#balance;
+          }
+        }
+        
+        const account = new BankAccount();
+        account.deposit(500);
+        console.log(account.balance); // 500
+        console.log(account.#balance); // SyntaxError</code></pre>
+                  </div>
+                </div>
+                
+                <div class="bg-gray-50 p-6 rounded-lg">
+                  <h4 class="text-xl font-medium mb-3 text-gray-800">Inheritance with <code>extends</code></h4>
+                  <pre class="bg-gray-800 text-green-400 p-4 rounded mb-4"><code>class Animal {
+          constructor(name) {
+            this.name = name;
+          }
+          
+          speak() {
+            console.log(\`\${this.name} makes a noise.\`);
+          }
+        }
+        
+        class Dog extends Animal {
+          constructor(name, breed) {
+            super(name);
+            this.breed = breed;
+          }
+          
+          speak() {
+            console.log(\`\${this.name} barks!\`);
+          }
+          
+          fetch() {
+            console.log(\`\${this.name} fetches the ball!\`);
+          }
+        }
+        
+        const dog = new Dog('Rex', 'Labrador');
+        dog.speak(); // Rex barks!</code></pre>
+                  
+                  <div class="bg-pink-50 p-4 rounded border-l-4 border-pink-400">
+                    <p class="font-medium text-pink-800">Super Keyword:</p>
+                    <ul class="list-disc pl-6 mt-2 text-gray-700">
+                      <li><code>super()</code> calls parent class constructor</li>
+                      <li><code>super.method()</code> calls parent class methods</li>
+                      <li>Must call <code>super()</code> before accessing <code>this</code></li>
+                    </ul>
+                  </div>
+                </div>
+              </div>
+              
+              <div class="mb-8 bg-green-50 p-6 rounded-lg border border-green-200">
+                <h3 class="text-2xl font-semibold mb-4 text-blue-600">Class Design Patterns</h3>
+                
+                <div class="mb-6">
+                  <h4 class="text-xl font-medium mb-3 text-gray-800">Mixins</h4>
+                  <pre class="bg-gray-800 text-green-400 p-4 rounded"><code>// Mixin as function returning class
+        const Serializable = Base => class extends Base {
+          serialize() {
+            return JSON.stringify(this);
+          }
+        };
+        
+        class User {
+          constructor(name) {
+            this.name = name;
+          }
+        }
+        
+        const SerializableUser = Serializable(User);
+        const user = new SerializableUser('Alice');
+        console.log(user.serialize()); // {"name":"Alice"}</code></pre>
+                </div>
+                
+                <div class="grid md:grid-cols-2 gap-6">
+                  <div class="bg-white p-5 shadow rounded-lg">
+                    <h4 class="text-xl font-medium mb-3 text-gray-800">Abstract Base Classes</h4>
+                    <pre class="bg-gray-800 text-green-400 p-4 rounded"><code>class AbstractShape {
+          constructor() {
+            if (new.target === AbstractShape) {
+              throw new Error("Cannot instantiate abstract class");
+            }
+          }
+          
+          area() {
+            throw new Error("Method 'area()' must be implemented");
+          }
+        }
+        
+        class Circle extends AbstractShape {
+          constructor(radius) {
+            super();
+            this.radius = radius;
+          }
+          
+          area() {
+            return Math.PI * this.radius ** 2;
+          }
+        }</code></pre>
+                  </div>
+                  
+                  <div class="bg-white p-5 shadow rounded-lg">
+                    <h4 class="text-xl font-medium mb-3 text-gray-800">Singleton Pattern</h4>
+                    <pre class="bg-gray-800 text-green-400 p-4 rounded"><code>class DatabaseConnection {
+          static #instance;
+          
+          constructor() {
+            if (DatabaseConnection.#instance) {
+              return DatabaseConnection.#instance;
+            }
+            DatabaseConnection.#instance = this;
+            // Initialize connection
+          }
+          
+          static getInstance() {
+            return DatabaseConnection.#instance || 
+                   new DatabaseConnection();
+          }
+        }
+        
+        const db1 = new DatabaseConnection();
+        const db2 = new DatabaseConnection();
+        console.log(db1 === db2); // true</code></pre>
+                  </div>
+                </div>
+              </div>
+              
+              <div class="bg-purple-50 p-6 rounded-lg mt-8 border border-purple-200">
+                <h3 class="text-2xl font-semibold mb-4 text-purple-700">Performance & Best Practices</h3>
+                <div class="grid md:grid-cols-2 gap-6">
+                  <div>
+                    <h4 class="text-lg font-medium mb-2 text-gray-800">Memory Optimization</h4>
+                    <ul class="list-disc pl-6 space-y-1 text-gray-700">
+                      <li>Methods are shared via prototype (memory efficient)</li>
+                      <li>Avoid arrow functions as methods (breaks <code>this</code> binding)</li>
+                      <li>Use private fields for true encapsulation</li>
+                    </ul>
+                  </div>
+                  
+                  <div>
+                    <h4 class="text-lg font-medium mb-2 text-gray-800">When to Use Classes</h4>
+                    <ul class="list-disc pl-6 space-y-1 text-gray-700">
+                      <li>Creating many similar objects</li>
+                      <li>When inheritance hierarchy is needed</li>
+                      <li>For React class components (though hooks are preferred now)</li>
+                    </ul>
+                  </div>
+                </div>
+                
+                <div class="mt-4 bg-white p-4 rounded shadow-inner">
+                  <h4 class="font-medium mb-2">Browser Support Table</h4>
+                  <div class="overflow-x-auto">
+                    <table class="min-w-full bg-white">
+                      <thead>
+                        <tr class="bg-gray-100">
+                          <th class="py-2 px-4 border">Feature</th>
+                          <th class="py-2 px-4 border">Chrome</th>
+                          <th class="py-2 px-4 border">Firefox</th>
+                          <th class="py-2 px-4 border">Safari</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        <tr>
+                          <td class="py-2 px-4 border">Class syntax</td>
+                          <td class="py-2 px-4 border">49+</td>
+                          <td class="py-2 px-4 border">45+</td>
+                          <td class="py-2 px-4 border">10.1+</td>
+                        </tr>
+                        <tr>
+                          <td class="py-2 px-4 border">Private fields</td>
+                          <td class="py-2 px-4 border">74+</td>
+                          <td class="py-2 px-4 border">90+</td>
+                          <td class="py-2 px-4 border">14.1+</td>
+                        </tr>
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
+              </div>
+            </section>
+          `
+        },
+        {
+          skillTitle: "Promises Deep Dive",
+          content: `
+            <section class="skill-content">
+              <h2 class="text-3xl font-bold mb-6 text-gray-800 border-b pb-2">Mastering JavaScript Promises</h2>
+              
+              <div class="mb-8">
+                <h3 class="text-2xl font-semibold mb-4 text-blue-600">The Promise Lifecycle</h3>
+                <p class="mb-4 text-gray-700 leading-relaxed">
+                  Every Promise goes through a strict lifecycle with three possible states:
+                </p>
+                
+                <div class="bg-gray-50 p-6 rounded-lg mb-6 border border-gray-200">
+                  <h4 class="font-mono text-lg mb-3 text-purple-700">State Transition Diagram:</h4>
+                  <pre class="bg-gray-800 text-green-400 p-4 rounded overflow-x-auto">
+        Pending → Fulfilled (with value)
+              ↘ Rejected (with reason)</pre>
+                  
+                  <ul class="list-disc pl-6 mt-4 space-y-2 text-gray-700">
+                    <li><strong>Pending:</strong> Initial state, neither fulfilled nor rejected</li>
+                    <li><strong>Fulfilled:</strong> Operation completed successfully</li>
+                    <li><strong>Rejected:</strong> Operation failed</li>
+                    <li><strong>Settled:</strong> Either fulfilled or rejected (terminal state)</li>
+                  </ul>
+                </div>
+                
+                <div class="grid md:grid-cols-2 gap-6 mb-8">
+                  <div class="bg-white p-5 shadow rounded-lg border border-blue-100">
+                    <h4 class="font-bold mb-3 text-lg">Creating Promises</h4>
+                    <pre class="bg-gray-100 p-3 rounded text-sm"><code>const promise = new Promise((resolve, reject) => {
+          // Asynchronous operation
+          if (success) {
+            resolve(value); // Transition to fulfilled
+          } else {
+            reject(reason); // Transition to rejected
+          }
+        });</code></pre>
+                  </div>
+                  
+                  <div class="bg-white p-5 shadow rounded-lg border border-green-100">
+                    <h4 class="font-bold mb-3 text-lg">Promise Chaining</h4>
+                    <pre class="bg-gray-100 p-3 rounded text-sm"><code>fetch('/api/data')
+          .then(response => response.json())
+          .then(data => processData(data))
+          .catch(error => handleError(error));</code></pre>
+                  </div>
+                </div>
+              </div>
+              
+              <div class="mb-10">
+                <h3 class="text-2xl font-semibold mb-4 text-blue-600">Advanced Promise Patterns</h3>
+                
+                <div class="mb-6">
+                  <h4 class="text-xl font-medium mb-3 text-gray-800">Error Handling Strategies</h4>
+                  <div class="bg-yellow-50 p-4 rounded-lg border-l-4 border-yellow-400 mb-4">
+                    <p class="font-medium text-yellow-800">Best Practice:</p>
+                    <p class="text-gray-700">Always terminate promise chains with .catch()</p>
+                  </div>
+                  
+                  <pre class="bg-gray-800 text-green-400 p-4 rounded mb-4"><code>// Three equivalent error handling approaches:
+        promise.then(handleSuccess).catch(handleError);
+        
+        promise.then(handleSuccess, handleError);
+        
+        promise.then(handleSuccess).then(null, handleError);</code></pre>
+                  
+                  <p class="text-gray-700 mb-4">Subtle differences in error bubbling behavior:</p>
+                  <ul class="list-disc pl-6 space-y-2 text-gray-700">
+                    <li>.catch() handles errors from all previous .then() handlers</li>
+                    <li>Error handler in .then() only catches errors from the immediate operation</li>
+                  </ul>
+                </div>
+                
+                <div class="bg-gray-50 p-6 rounded-lg mb-6">
+                  <h4 class="text-xl font-medium mb-3 text-gray-800">Promise Combinators</h4>
+                  
+                  <div class="grid md:grid-cols-3 gap-4">
+                    <div class="bg-white p-4 rounded shadow">
+                      <h5 class="font-bold mb-2">Promise.all()</h5>
+                      <p class="text-sm text-gray-600 mb-2">Waits for all promises to fulfill or any to reject</p>
+                      <pre class="bg-gray-100 p-2 rounded text-xs"><code>Promise.all([p1, p2, p3])
+          .then(values => {
+            // Array of results
+          });</code></pre>
+                    </div>
+                    
+                    <div class="bg-white p-4 rounded shadow">
+                      <h5 class="font-bold mb-2">Promise.race()</h5>
+                      <p class="text-sm text-gray-600 mb-2">Settles when any promise settles</p>
+                      <pre class="bg-gray-100 p-2 rounded text-xs"><code>Promise.race([p1, p2])
+          .then(firstResult => {
+            // First settled value
+          });</code></pre>
+                    </div>
+                    
+                    <div class="bg-white p-4 rounded shadow">
+                      <h5 class="font-bold mb-2">Promise.allSettled()</h5>
+                      <p class="text-sm text-gray-600 mb-2">Waits for all promises to complete</p>
+                      <pre class="bg-gray-100 p-2 rounded text-xs"><code>Promise.allSettled([p1, p2])
+          .then(results => {
+            // Array of status objects
+          });</code></pre>
+                    </div>
+                  </div>
+                </div>
+              </div>
+              
+              <div class="mb-8">
+                <h3 class="text-2xl font-semibold mb-4 text-blue-600">Real-World Promise Use Cases</h3>
+                
+                <div class="bg-blue-50 p-6 rounded-lg mb-6 border border-blue-200">
+                  <h4 class="text-xl font-medium mb-3 text-gray-800">API Request Handling</h4>
+                  <pre class="bg-gray-800 text-green-400 p-4 rounded"><code>function fetchUserData(userId) {
+          return fetch(\`/api/users/\${userId}\`)
+            .then(response => {
+              if (!response.ok) {
+                throw new Error('Network response failed');
+              }
+              return response.json();
+            })
+            .then(data => transformUserData(data))
+            .catch(error => {
+              console.error('Fetch error:', error);
+              throw error; // Re-throw for further handling
+            });
+        }</code></pre>
+                </div>
+                
+                <div class="bg-green-50 p-6 rounded-lg border border-green-200">
+                  <h4 class="text-xl font-medium mb-3 text-gray-800">Timeout Patterns</h4>
+                  <pre class="bg-gray-800 text-green-400 p-4 rounded"><code>function withTimeout(promise, timeout) {
+          return Promise.race([
+            promise,
+            new Promise((_, reject) => 
+              setTimeout(() => reject(new Error('Timeout')), timeout)
+            )
+          ]);
+        }
+        
+        // Usage:
+        withTimeout(fetch('/slow-api'), 5000)
+          .then(handleResponse)
+          .catch(error => {
+            if (error.message === 'Timeout') {
+              showTimeoutMessage();
+            }
+          });</code></pre>
+                </div>
+              </div>
+              
+              <div class="bg-purple-50 p-6 rounded-lg mt-8 border border-purple-200">
+                <h3 class="text-2xl font-semibold mb-4 text-purple-700">Performance Considerations</h3>
+                <ul class="list-disc pl-6 space-y-2 text-gray-700">
+                  <li><strong>Microtask Queue:</strong> Promise callbacks execute as microtasks (before next render frame)</li>
+                  <li><strong>Memory Leaks:</strong> Unhandled promise rejections can cause memory leaks in Node.js</li>
+                  <li><strong>Optimization:</strong> Avoid unnecessary promise creation in tight loops</li>
+                  <li><strong>Debugging:</strong> Use <code>unhandledrejection</code> event for global error handling</li>
+                </ul>
+                
+                <div class="mt-4 bg-white p-4 rounded shadow-inner">
+                  <pre class="bg-gray-800 text-green-400 p-3 rounded"><code>// Global rejection handler
+        window.addEventListener('unhandledrejection', event => {
+          console.warn('Unhandled rejection:', event.reason);
+          event.preventDefault();
+        });</code></pre>
+                </div>
+              </div>
+            </section>
+          `
+        },
         {
           skillTitle: "Variables and Data Types",
           content: `
@@ -147,7 +593,7 @@ console.log(privateVar); // ReferenceError</code></pre>
           options: ["Arrow functions", "Regular functions", "Both", "Neither"],
           correctAnswer: "Regular functions"
         }
-      ]
+      ],
     },
     {
       title: "Functional Programming in JavaScript",
@@ -290,7 +736,7 @@ function factorial(n, acc = 1) {
       ]
     }
   ],
-  creator: new mongoose.Types.ObjectId("686d3622b95602004ffbba14"),
+  creator: new mongoose.Types.ObjectId("6876c09b8781b3ea002fc48b"),
   dateCreated: new Date(),
   isPublished: true
 };
@@ -415,7 +861,8 @@ box-sizing: border-box; /* width = content + padding + border */</code></pre>
           ],
           correctAnswer: "Includes padding and border in element's width"
         }
-      ]
+      ],
+      feedbackRoom: {},
     },
     {
       title: "Flexbox Layout",
@@ -531,7 +978,7 @@ body {
           options: ["Fixed 16px", "Fraction of available space", "Viewport width", "Flex grow value"],
           correctAnswer: "Fraction of available space"
         }
-      ]
+      ],
     },
     {
       title: "Advanced CSS Techniques",
@@ -595,13 +1042,14 @@ body {
       ]
     }
   ],
-  creator: new mongoose.Types.ObjectId("686d3622b95602004ffbba14"),
+  creator: new mongoose.Types.ObjectId("6876c09b8781b3ea002fc48b"),
   dateCreated: new Date(),
   isPublished: true
 };
 
 
 export const pythonCourse = {
+
   title: "Python Programming Mastery",
   description: "Learn Python from fundamentals to advanced concepts, including OOP, data structures, and popular frameworks for building robust applications.",
   category: "Programming",
@@ -821,7 +1269,7 @@ print(book)  # Calls __str__ automatically</code></pre>
       ]
     }
   ],
-  creator: new mongoose.Types.ObjectId("686d3622b95602004ffbba14"),
+  creator: new mongoose.Types.ObjectId("6876c09b8781b3ea002fc48b"),
   dateCreated: new Date(),
   isPublished: true
 };
@@ -832,6 +1280,7 @@ export const reactCourse = {
   description: "Learn to build modern, scalable web applications with React. Master hooks, context, state management, and performance optimization techniques.",
   category: "Web Development",
   imageUrl: "https://www.patterns.dev/img/reactjs/react-logo@3x.svg",
+
   topics: [
     {
       title: "React Fundamentals",
@@ -1103,7 +1552,7 @@ function Counter() {
       ]
     }
   ],
-  creator: new mongoose.Types.ObjectId("686d3622b95602004ffbba14"),
+  creator: new mongoose.Types.ObjectId("6876c09b8781b3ea002fc48b"),
   dateCreated: new Date(),
   isPublished: true
 };
