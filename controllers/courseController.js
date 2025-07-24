@@ -472,7 +472,7 @@ export const getCoursesCreatedBySomeone = async (req, res) => {
       .select("fullName avatar email createdCourses");
 
 
-    const formattedCourses = exsistingCreator.createdCourses?.map((createdCourse) => {
+    const formattedCourses = exsistingCreator?.createdCourses?.map((createdCourse) => {
       return {
         _id: createdCourse?._id,
         title: createdCourse?.title,
