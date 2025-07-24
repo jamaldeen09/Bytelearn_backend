@@ -28,9 +28,12 @@ import bcrypt from "bcrypt"
 dotenv.config();
 
 const URL = process.env.MONGO_URL;
-const PORT = process.env.NEXT_PUBLIC_PORT;
+const PORT = process.env.PORT|| 10000;
 const app = express();
 const server = http.createServer(app);
+
+server.keepAliveTimeout = 120000
+server.headersTimeout = 120000
 
 export const io = new Server(server, {
   cors: {
@@ -40,7 +43,9 @@ export const io = new Server(server, {
 
     ],
     credentials: true,
-  }
+  },
+  pingTimeout: 60000,
+  pingInterval: 25000
 });
 
 
@@ -714,7 +719,7 @@ io.on("connection", async (socket) => {
         const likedByObjectIds = message.likedBy.map(id => id.toString());
         const alreadyLiked = likedByObjectIds.includes(user._id.toString());
 
-        
+
         const update = {
           $inc: { likes: like ? 1 : -1 },
           [like ? '$addToSet' : '$pull']: { likedBy: user._id }
@@ -783,12 +788,21 @@ mongoose
     // await User.deleteOne({fullName: "Jubril Olatunji"})
 
 
-    server.listen(PORT, () =>   
+    server.listen(PORT, "0.0.0.0", () =>
       console.log(`Server is running on port http://localhost:${PORT}`)
     );
 
   })
   .catch((err) => {
-    console.error(err);
+    console.error("MongoDB connection error:", err);
+    process.exit(1);
   });
+
+process.on('SIGTERM', () => {
+  console.log('SIGTERM received. Shutting down gracefully...');
+  server.close(() => {
+    console.log('Server closed');
+    process.exit(0);
+  });
+});
 
