@@ -472,24 +472,24 @@ export const getCoursesCreatedBySomeone = async (req, res) => {
       .select("fullName avatar email createdCourses");
 
 
-    const formattedCourses = exsistingCreator.createdCourses.map((createdCourse) => {
+    const formattedCourses = exsistingCreator.createdCourses?.map((createdCourse) => {
       return {
-        _id: createdCourse._id,
-        title: createdCourse.title,
-        description: createdCourse.description,
-        category: createdCourse.category,
-        imageUrl: createdCourse.imageUrl,
-        topics: createdCourse.topics,
-        dateCreated: createdCourse.dateCreated,
+        _id: createdCourse?._id,
+        title: createdCourse?.title,
+        description: createdCourse?.description,
+        category: createdCourse?.category,
+        imageUrl: createdCourse?.imageUrl,
+        topics: createdCourse?.topics,
+        dateCreated: createdCourse?.dateCreated,
         creator: {
-          _id: createdCourse.creator._id,
+          _id: createdCourse.creator?._id,
           fullName: createdCourse?.creator?.fullName,
           profilePicture: createdCourse?.creator?.avatar,
           email: createdCourse?.creator.email,
         },
-        enrollments: createdCourse.enrollments,
-        likes: createdCourse.likes,
-        isPublished: createdCourse.isPublished
+        enrollments: createdCourse?.enrollments,
+        likes: createdCourse?.likes,
+        isPublished: createdCourse?.isPublished
       }
     })
 
@@ -616,21 +616,21 @@ export const publishCourse = async (req, res) => {
     })
       .select("fullName avatar email createdCourses");
 
-    const createdCourses = user.createdCourses.map((course) => {
+    const createdCourses = user.createdCourses?.map((course) => {
       return {
-        _id: course._id,
-        title: course.title,
-        description: course.description,
-        category: course.category,
-        imageUrl: course.imageUrl,
-        topics: course.topics,
-        dateCreated: course.dateCreated,
+        _id: course?._id,
+        title: course?.title,
+        description: course?.description,
+        category: course?.category,
+        imageUrl: course?.imageUrl,
+        topics: course?.topics,
+        dateCreated: course?.dateCreated,
         creator: {
-          fullName: course.creator.fullName,
-          profilePicture: course.creator.avatar,
+          fullName: course?.creator?.fullName,
+          profilePicture: course?.creator?.avatar,
         },
-        isPublished: course.isPublished,
-        likes: course.likes,
+        isPublished: course?.isPublished,
+        likes: course?.likes,
       }
     })
 
@@ -670,22 +670,22 @@ export const draftCourse = async (req, res) => {
     })
       .select("fullName avatar email createdCourses");
 
-    const createdCourses = user.createdCourses.map((course) => {
+    const createdCourses = user.createdCourses?.map((course) => {
       return {
-        _id: course._id,
-        title: course.title,
-        description: course.description,
-        category: course.category,
-        imageUrl: course.imageUrl,
-        topics: course.topics,
-        dateCreated: course.dateCreated,
+        _id: course?._id,
+        title: course?.title,
+        description: course?.description,
+        category: course?.category,
+        imageUrl: course?.imageUrl,
+        topics: course?.topics,
+        dateCreated: course?.dateCreated,
         creator: {
-          fullName: course.creator.fullName,
-          email: course.creator.email,
-          profilePicture: course.creator.avatar,
+          fullName: course?.creator?.fullName,
+          email: course?.creator?.email,
+          profilePicture: course?.creator?.avatar,
         },
-        isPublished: course.isPublished,
-        likes: course.likes,
+        isPublished: course?.isPublished,
+        likes: course?.likes,
       }
     })
 
@@ -743,21 +743,21 @@ export const deleteCreatedCourse = async (req, res) => {
     await Progress.deleteMany({ course: courseId });
 
     // 7. Return the updated list of created courses
-    const createdCourses = user.createdCourses.map(course => ({
-      _id: course._id,
-      title: course.title,
-      description: course.description,
-      category: course.category,
-      imageUrl: course.imageUrl,
-      topics: course.topics,
-      dateCreated: course.dateCreated,
+    const createdCourses = user.createdCourses?.map(course => ({
+      _id: course?._id,
+      title: course?.title,
+      description: course?.description,
+      category: course?.category,
+      imageUrl: course?.imageUrl,
+      topics: course?.topics,
+      dateCreated: course?.dateCreated,
       creator: {
-        fullName: course.creator.fullName,
-        email: course.creator.email,
-        profilePicture: course.creator.avatar,
+        fullName: course?.creator?.fullName,
+        email: course?.creator?.email,
+        profilePicture: course?.creator?.avatar,
       },
-      isPublished: course.isPublished,
-      likes: course.likes,
+      isPublished: course?.isPublished,
+      likes: course?.likes,
     }));
 
     return res.status(200).send({
@@ -859,7 +859,7 @@ export const getMetrics = async (req, res) => {
 
     const getTotalEnrollments = () => {
       let gettingTotal = 0;
-      user.createdCourses.forEach((course) => {
+      user.createdCourses?.forEach((course) => {
         gettingTotal += course.enrollments
       })
 
@@ -871,7 +871,7 @@ export const getMetrics = async (req, res) => {
       let totalLikes = 0;
       let courseCount = 0;
 
-      user.createdCourses.forEach((course) => {
+      user.createdCourses?.forEach((course) => {
         totalLikes += course.likes;
         courseCount++;
       });
@@ -882,17 +882,17 @@ export const getMetrics = async (req, res) => {
 
     const getMostPopularCourse = () => {
       const allLikes = []
-      user.createdCourses.forEach((course) => {
+      user.createdCourses?.forEach((course) => {
         allLikes.push(course.likes)
       })
 
-      return user.createdCourses.find((course) => course.likes === Math.max(...allLikes))
+      return user.createdCourses?.find((course) => course.likes === Math.max(...allLikes))
     };
 
 
     const getEngagementRatio = () => {
 
-      const { totalLikes, totalEnrollments } = user.createdCourses.reduce(
+      const { totalLikes, totalEnrollments } = user.createdCourses?.reduce(
         (acc, course) => {
           acc.totalLikes += course.likes || 0;
           acc.totalEnrollments += course.enrollments || 0;
@@ -910,7 +910,7 @@ export const getMetrics = async (req, res) => {
       let totalCompletion = 0;
       let coursesWithStudents = 0;
 
-      for (const course of user.createdCourses) {
+      for (const course of user?.createdCourses) {
         const totalSkills = course.topics.reduce(
           (sum, topic) => sum + topic.skills.length, 0
         );
@@ -985,7 +985,7 @@ export const getEnrollmentsDetails = async (req, res) => {
     if (!user)
       return res.status(404).send({ success: false, msg: "Your account was not found" });
 
-    if (!user.createdCourses || user.createdCourses.length === 0) {
+    if (!user?.createdCourses || user.createdCourses?.length === 0) {
       return res.status(200).send({
         success: true,
         enrollmentsData: {
@@ -1001,11 +1001,11 @@ export const getEnrollmentsDetails = async (req, res) => {
 
     // Get all progress records for the creator's courses at once
     const progressRecords = await Progress.find({
-      course: { $in: user.createdCourses.map(c => c._id) }
+      course: { $in: user.createdCourses?.map(c => c._id) }
     }).populate('student', 'fullName email avatar isOnline');
 
     // Structure the data by course with null checks
-    const enrollmentsByCourse = user.createdCourses.map(course => {
+    const enrollmentsByCourse = user.createdCourses?.map(course => {
       if (!course) return null;
       
       const totalSkills = course.topics?.reduce(
@@ -1030,23 +1030,23 @@ export const getEnrollmentsDetails = async (req, res) => {
 
         return {
           _id: student._id?.toString(),
-          fullName: student.fullName,
-          email: student.email,
-          avatar: student.avatar,
-          isOnline: student.isOnline,
+          fullName: student?.fullName,
+          email: student?.email,
+          avatar: student?.avatar,
+          isOnline: student?.isOnline,
           enrolledAt: progress?.createdAt || new Date(),
           progress: progressPercentage,
-          likes: course.likes || 0
+          likes: course?.likes || 0
         };
       }).filter(Boolean); // Remove null entries
 
       return {
         courseId: course._id?.toString(),
-        courseTitle: course.title,
+        courseTitle: course?.title,
         students,
-        courseLikes: course.likes || 0
+        courseLikes: course?.likes || 0
       };
-    }).filter(Boolean); // Remove null entries
+    }).filter(Boolean); 
 
     // Flatten the structure with additional checks
     const formattedEnrollments = enrollmentsByCourse.flatMap(course =>
@@ -1066,7 +1066,7 @@ export const getEnrollmentsDetails = async (req, res) => {
     );
 
     const uniqueStudentIds = new Set();
-    user.createdCourses.forEach(course => {
+    user.createdCourses?.forEach(course => {
       (course?.peopleEnrolled || []).forEach(student => {
         if (student?._id) {
           uniqueStudentIds.add(student._id.toString());
@@ -1144,7 +1144,7 @@ export const getFeedbackMetrics = async (req, res) => {
     // Calculate comprehensive feedback metrics
     const metrics = {
       overview: {
-        totalCourses: user.createdCourses.length,
+        totalCourses: user.createdCourses?.length,
         coursesWithFeedback: 0,
         totalFeedbackMessages: 0,
         totalLikesReceived: 0,
@@ -1168,7 +1168,7 @@ export const getFeedbackMetrics = async (req, res) => {
     };
 
     // Analyze each course
-    user.createdCourses.forEach(course => {
+    user.createdCourses?.forEach(course => {
       const feedbackMessages = course.feedbackRoom?.messages || [];
       const enrollments = course.peopleEnrolled.length;
       const likes = course.likes;
@@ -1225,19 +1225,18 @@ export const getFeedbackMetrics = async (req, res) => {
     });
 
     // Calculate averages
-    if (user.createdCourses.length > 0) {
-      metrics.overview.avgFeedbackPerCourse = metrics.overview.totalFeedbackMessages / user.createdCourses.length;
+    if (user.createdCourses?.length > 0) {
+      metrics.overview.avgFeedbackPerCourse = metrics.overview.totalFeedbackMessages / user.createdCourses?.length;
     }
 
     // Calculate enrollment to feedback ratio
-    const totalEnrollments = user.createdCourses.reduce((sum, course) => sum + course.peopleEnrolled.length, 0);
+    const totalEnrollments = user.createdCourses?.reduce((sum, course) => sum + course.peopleEnrolled.length, 0);
     if (totalEnrollments > 0) {
       metrics.engagement.enrollmentToFeedbackRatio = (metrics.overview.totalFeedbackMessages / totalEnrollments) * 100;
     }
 
     // Get recent feedback (last 5 messages across all courses)
-    metrics.temporal.recentFeedback = user.createdCourses
-      .flatMap(course => 
+    metrics.temporal.recentFeedback = user.createdCourses?.flatMap(course => 
         (course.feedbackRoom?.messages || [])
           .map(msg => ({
             course: course.title,
@@ -1294,15 +1293,15 @@ export const getMostRecentFeedbacks = async (req, res) => {
     }
 
     // Extract and flatten all feedback messages
-    const allFeedbacks = user.createdCourses.flatMap(course => 
+    const allFeedbacks = user.createdCourses?.flatMap(course => 
       course.feedbackRoom?.messages?.map(msg => ({
-        courseId: course._id,
-        courseTitle: course.title,
+        courseId: course?._id,
+        courseTitle: course?.title,
         message: msg.content,
-        sender: msg.sender.fullName,
-        senderAvatar: msg.sender.avatar,
-        createdAt: msg.createdAt,
-        likes: msg.likes || 0
+        sender: msg?.sender?.fullName,
+        senderAvatar: msg?.sender?.avatar,
+        createdAt: msg?.createdAt,
+        likes: msg?.likes || 0
       })) || []
     );
 
