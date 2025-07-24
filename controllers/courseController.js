@@ -495,7 +495,7 @@ export const getCoursesCreatedBySomeone = async (req, res) => {
 
 
     return res.status(200).send({
-      success: true, msg: `Fetched ${exsistingCreator.fullName}'s works successfully`,
+      success: true, msg: `Fetched ${exsistingCreator?.fullName}'s works successfully`,
       data: formattedCourses.filter((course) => course.isPublished)
     })
   } catch (err) {
