@@ -797,21 +797,21 @@ export const getMostPopularCourses = async (req, res) => {
 
 
     const payload = mostLikedCourses.map(course => ({
-      _id: course._id,
-      title: course.title,
-      description: course.description,
-      category: course.category,
-      imageUrl: course.imageUrl,
-      topics: course.topics,
-      dateCreated: course.dateCreated,
+      _id: course?._id,
+      title: course?.title,
+      description: course?.description,
+      category: course?.category,
+      imageUrl: course?.imageUrl,
+      topics: course?.topics,
+      dateCreated: course?.dateCreated,
       creator: {
         fullName: course.creator?.fullName,
-        email: course.creator.email,
-        profilePicture: course.creator.avatar,
+        email: course.creator?.email,
+        profilePicture: course.creator?.avatar,
       },
-      createdCourses: course.creator.createdCourses,
-      isPublished: course.isPublished,
-      likes: course.likes,
+      createdCourses: course.creator?.createdCourses,
+      isPublished: course?.isPublished,
+      likes: course?.likes,
     }));
     const filteredMostLikedCourses = payload.filter((course) => course.isPublished)
 
