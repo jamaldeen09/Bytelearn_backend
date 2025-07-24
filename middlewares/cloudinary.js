@@ -17,7 +17,7 @@ export const cloudUploadMiddleware = (req, res, next) => {
     if (err) {
       return res.status(400).json({
         success: false,
-        msg: "File upload error",
+        msg: "File upload error",  
         error: err.message,
       });
     }

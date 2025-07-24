@@ -805,7 +805,7 @@ export const getMostPopularCourses = async (req, res) => {
       topics: course.topics,
       dateCreated: course.dateCreated,
       creator: {
-        fullName: course.creator.fullName,
+        fullName: course.creator?.fullName,
         email: course.creator.email,
         profilePicture: course.creator.avatar,
       },
@@ -958,123 +958,6 @@ export const getMetrics = async (req, res) => {
     return res.status(500).send({ success: false, msg: "Server error" })
   }
 }
-
-// export const getEnrollmentsDetails = async (req, res) => {
-//   try {
-//     if (!req.user.userId)
-//       return res.status(401).send({ success: false, msg: "Unauthorized Access" });
-
-//     const user = await User.findById(req.user.userId).populate([
-//       {
-//         path: "createdCourses",
-//         model: "Course",
-//         select: "title likes",
-//         populate: [
-//           {
-//             path: "peopleEnrolled",
-//             model: "User",
-//             select: "fullName email avatar isOnline"
-//           },
-//           {
-//             path: "topics",
-//             select: "skills"
-//           }
-//         ]
-//       }
-//     ]);
-
-//     if (!user)
-//       return res.status(404).send({ success: false, msg: "Your account was not found" });
-
-//     // Get all progress records for the creator's courses at once
-//     const progressRecords = await Progress.find({
-//       course: { $in: user.createdCourses.map(c => c._id) }
-//     }).populate('student', 'fullName email avatar isOnline');
-
-//     // Structure the data by course
-//     const enrollmentsByCourse = user.createdCourses.map(course => {
-//       const totalSkills = course.topics?.reduce(
-//         (sum, topic) => sum + (topic.skills?.length || 0), 0
-//       ) || 0;
-
-//       const courseProgress = progressRecords.filter(p => p.course.equals(course._id));
-
-//       const students = course.peopleEnrolled.map(student => {
-//         const progress = courseProgress.find(p => p.student._id.equals(student._id));
-//         const completedSkills = progress?.completedSkills?.length || 0;
-//         const progressPercentage = totalSkills > 0
-//           ? Math.round((completedSkills / totalSkills) * 100)
-//           : 0;
-
-//         return {
-//           _id: student._id,
-//           fullName: student.fullName,
-//           email: student.email,
-//           avatar: student.avatar,
-//           isOnline: student.isOnline,
-//           enrolledAt: progress?.createdAt || new Date(),
-//           progress: progressPercentage,
-//           likes: course.likes || 0 // Use the course's likes count instead of 0
-//         };
-//       });
-
-//       return {
-//         courseId: course._id,
-//         courseTitle: course.title,
-//         students,
-//         courseLikes: course.likes || 0 // Include course likes at the course level
-//       };
-//     });
-
-//     // Flatten the structure for the table view
-//     const formattedEnrollments = enrollmentsByCourse.flatMap(course =>
-//       course.students.map(student => ({
-//         id: student._id,
-//         course: course.courseTitle,
-//         student: student.fullName,
-//         enrolledAt: student.enrolledAt.toISOString().split('T')[0],
-//         progress: student.progress,
-//         likes: course.courseLikes
-//       }))
-//     );
-
-
-//     const totalLikes = enrollmentsByCourse.reduce(
-//       (sum, course) => sum + course.courseLikes, 0
-//     );
-
-//     const uniqueStudentIds = new Set();
-//     user.createdCourses.forEach(course => {
-//       course.peopleEnrolled.forEach(student => {
-//         uniqueStudentIds.add(student._id.toString());
-//       });
-//     });
-
-//     // Count active students (those with progress > 0 in any course)
-//     const activeStudentsCount = progressRecords.reduce((count, progress) => {
-//       if (progress.completedSkills?.length > 0 && !count.has(progress.student._id.toString())) {
-//         count.add(progress.student._id.toString());
-//       }
-//       return count;
-//     }, new Set()).size;
-
-//     return res.status(200).send({
-//       success: true,
-//       enrollmentsData: {
-//         enrollments: formattedEnrollments,
-//         stats: {
-//           totalEnrollments: formattedEnrollments.length,
-//           activeStudents: activeStudentsCount,
-//           totalLikes: totalLikes
-//         }
-//       }
-//     });
-
-//   } catch (err) {
-//     console.error(err);
-//     return res.status(500).send({ success: false, msg: "Server error" });
-//   }
-// };
 export const getEnrollmentsDetails = async (req, res) => {
   try {
     if (!req.user.userId)

@@ -688,49 +688,6 @@ io.on("connection", async (socket) => {
       }
     })
 
-    // socket.on(events.LIKE_FEEDBACK_MESSAGE, async ({ messageId, courseId, userId, like }) => {
-    //   try {
-    //     // Find the feedback message
-    //     console.log("Received Data: ", { messageId, courseId, userId, like })
-    //     const message = await FeedbackMessage.findById(messageId);
-    //     if (!message) {
-    //       socket.emit(events.NOT_FOUND, responseGenerator(false, "Message not found"));
-    //       return;
-    //     }
-
-    //     const user = await User.findById(userId);
-    //     if (!user) {
-    //       socket.emit(events.NOT_FOUND, responseGenerator(false, "User not found"));
-    //       return;
-    //     }
-
-    //     // Check if user already liked the message
-    //     const alreadyLiked = message.likedBy.includes(user._id);
-
-    //     if (like && !alreadyLiked) {
-
-    //       message.likes += 1;
-    //       message.likedBy.push(user._id);
-    //     } else if (!like && alreadyLiked) {
-
-    //       message.likes = Math.max(0, message.likes - 1);
-    //       message.likedBy = message.likedBy.filter(id => !id.equals(user._id));
-    //     }
-
-    //     await message.save();
-
-    //     const room = `feedback-${courseId}`;
-    //     io.to(room).emit(events.FEEDBACK_MESSAGE_LIKED, {
-    //       messageId,
-    //       likes: message.likes,
-    //       liked: like
-    //     });
-
-    //   } catch (err) {
-    //     console.error("Error in LIKE_FEEDBACK_MESSAGE:", err);
-    //     socket.emit(events.ERROR_OCCURED, responseGenerator(false, "Failed to process like"));
-    //   }
-    // });
     socket.on(events.LIKE_FEEDBACK_MESSAGE, async ({ messageId, courseId, userId, like }) => {
       try {
         // 1. Input Validation
@@ -823,8 +780,10 @@ mongoose
     //   $set: {  peopleEnrolled: [] }
     //  })
 
+    // await User.deleteOne({fullName: "Jubril Olatunji"})
 
-    server.listen(PORT, () =>
+
+    server.listen(PORT, () =>   
       console.log(`Server is running on port http://localhost:${PORT}`)
     );
 
