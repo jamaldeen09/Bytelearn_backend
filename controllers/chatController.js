@@ -155,3 +155,22 @@ export const getUnreadMessages = async (req, res) => {
       res.status(500).json({ msg: "Server error fetching unread messages" });
     }
 };
+
+export const clearNotifications = async (req, res) => {
+    try {
+        const userId = req.user.userId;
+
+        if (!userId)
+            return res.status(401).send({ success: false, msg: "Unauthorized Access" })
+
+        const user = await User.findByIdAndUpdate(userId, {$set: {notifications: []}}, {new: true});
+
+        if (!user)
+            return res.status(404).send({ success: false, msg: "Your account was not found" })
+
+        return res.status(200).send({ success: true, msg: "Notifications have been cleared successfully" });
+    } catch (err) {
+        console.error(err);
+        res.status(500).json({ msg: "Server error occured in clearing notifications" });
+    }
+}

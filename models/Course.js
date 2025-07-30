@@ -14,7 +14,6 @@ export const skillSchema = new mongoose.Schema({
 const topicSchema = new mongoose.Schema({
   title: { type: String, required: true },
   skills: [ skillSchema ],
-  quiz: [quizSchema], 
 });
 
 const courseSchema = new mongoose.Schema({    
@@ -28,6 +27,8 @@ const courseSchema = new mongoose.Schema({
   isPublished: { type: Boolean, default: false },
   likes: { type: Number, default: 0 },      
   enrollments: { type: Number, default: 0 },
+  quiz: [quizSchema], 
+
 
   feedbackRoom: {
     type: mongoose.Schema.Types.ObjectId,
@@ -38,6 +39,16 @@ const courseSchema = new mongoose.Schema({
   peopleEnrolled: {
     type: [ mongoose.Schema.Types.ObjectId ],
     default: [],
+  },
+
+  version: { 
+    type: Number, 
+    default: 1 
+  },
+
+  isArchived: {
+    type: Boolean,
+    default: false
   },
 });                                  
 

@@ -3,7 +3,7 @@ import {
   validationMiddleware,
   verifyAccessToken,
 } from "../middlewares/auth.js";
-import { deleteNotification, getFriends, getNotifications, getUnreadMessages } from "../controllers/chatController.js";
+import { clearNotifications, deleteNotification, getFriends, getNotifications, getUnreadMessages } from "../controllers/chatController.js";
 import { param } from "express-validator";
 import User from "../models/User.js";
 import Message from "../models/Message.js";
@@ -55,4 +55,5 @@ chatRouter.delete("/api/friends/:friendId", verifyAccessToken, async (req, res) 
 });
 
 chatRouter.get("/api/messages", async (req, res) => res.json(await Message.find()))
+chatRouter.delete("/api/clear-notifications", verifyAccessToken, clearNotifications)
 

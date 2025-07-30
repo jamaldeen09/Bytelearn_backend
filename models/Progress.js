@@ -8,6 +8,10 @@ const progressSchema = new mongoose.Schema({
     ],
     lastVisitedSkill: { type: mongoose.Schema.Types.ObjectId, default: null},
     isCompleted: { type: Boolean, default: false },
+    snapshottedCourse: { 
+        type: mongoose.Schema.Types.Mixed, 
+        default: null 
+      }
 }, { timestamps: true })
 
 export default mongoose.model("Progress", progressSchema)

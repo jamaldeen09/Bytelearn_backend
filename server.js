@@ -24,6 +24,7 @@ import Progress from "./models/Progress.js";
 import FeedbackMessage from "./models/FeedbackMessage.js";
 import aiRouter from "./routes/aiRouter.js";
 import bcrypt from "bcrypt"
+import { MongoClient } from "mongodb"
 
 dotenv.config();
 
@@ -775,45 +776,22 @@ app.use(chatRouter);
 app.use(uploadRouter);
 app.use(aiRouter)
 
+
 mongoose
   .connect(URL ? URL : "")
   .then(async () => {
-
-    //  const updatedCount = await Course.updateMany({
-    //    peopleEnrolled: {$exists: false}
-    //  }, {
-    //   $set: {  peopleEnrolled: [] }
-    //  })
-
-    // await User.deleteOne({fullName: "Jubril Olatunji"})
-
-    // const react = new mongoose.Types.ObjectId("6877a95052627f399ca7b3a6")
-    // const javascript = await Course.findOne({ title: "Mastering JavaScript for Web Development" })
-  
-    // // const python = new mongoose.Types.ObjectId("6877a95152627f399ca7b3b3")
-    // const jamal = new mongoose.Types.ObjectId("6882a1c72715b1f8fce40680")
-
-    // // // await Course.findOneAndUpdate({ _id: react }, { $set: {creator: jamal }})
-    // // await Course.findOneAndUpdate({ _id: javascript._id }, { $set: {creator: jamal }})
-    // // // await Course.findOneAndUpdate({ _id: python }, { $set: {creator: jamal }})
-
- 
-    // const css = await Course.findOne({ title: "Mastering Modern CSS Development" })
     
-    // css.creator = jamal;
-    // await css.save()
-
-    //    await User.findOneAndUpdate({ _id: jamal }, { $push: {createdCourses: css._id } })
-
+    
     server.listen(PORT, "0.0.0.0", () =>
       console.log(`Server is running on port http://localhost:${PORT}`)
     );
-
   })
   .catch((err) => {
     console.error("MongoDB connection error:", err);
     process.exit(1);
   });
+
+  
 
 process.on('SIGTERM', () => {
   console.log('SIGTERM received. Shutting down gracefully...');

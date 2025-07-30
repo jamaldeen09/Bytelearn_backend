@@ -14,6 +14,33 @@ export const validationMiddleware = (req, res, next) => {
     next();
 }
 
+export const saveChangesValidationMiddleware = (req, res, next) => {
+
+    const errors = validationResult(req);
+    if (!errors.isEmpty()) {
+        return res.status(400).send({ success: false, errors: errors.array() });
+    }
+
+    // Parse JSON fields before creating req.data
+    if (req.body.courseToReplaceWith) {
+        try {
+            req.body.courseToReplaceWith = JSON.parse(req.body.courseToReplaceWith);
+        } catch (e) {
+            return res.status(400).send({ 
+                success: false, 
+                errors: [{ msg: "Invalid course data format" }] 
+            });
+        }
+    }
+
+    req.data = matchedData(req, {
+        includeOptionals: true,
+        locations: ['body', 'files']
+    });
+    
+    next();
+};
+
 export const createAccessToken = (id) => {
     return jwt.sign({ userId: id }, process.env.JWT_SECRET, { expiresIn: "3d" })
 }

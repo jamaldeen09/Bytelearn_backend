@@ -70,14 +70,16 @@ export const fetchCourses = async (req, res) => {
         text: msg.content,
         createdAt: msg.createdAt,
       })),
+      quiz: course.quiz,
       peopleEnrolled: course.peopleEnrolled,
       enrollments: course.enrollments,
       isPublished: course?.isPublished,
+      isArchived: course.isArchived,
       createdCourses: exsistingUser?.createdCourses
     }));
     const coursesFiltered = formattedCourses.filter((course) => course.isPublished)
 
-    return res.status(200).json({ success: true, courses: coursesFiltered });
+    return res.status(200).json({ success: true, courses: coursesFiltered, allCourses: formattedCourses });
   } catch (err) {
     console.error("Error fetching courses:", err);
     return res.status(500).json({
@@ -86,6 +88,8 @@ export const fetchCourses = async (req, res) => {
     });
   }
 };
+
+
 
 export const enrollToACourse = async (req, res) => {
   try {
@@ -130,6 +134,8 @@ export const enrollToACourse = async (req, res) => {
     const newProgress = await Progress.create({
       student,
       course: courseToEnrollIn._id,
+      courseVersion: courseToEnrollIn.version,
+      snapshottedCourse: courseToEnrollIn.toObject(),
       isCompleted: false,
     });
 
@@ -144,7 +150,6 @@ export const enrollToACourse = async (req, res) => {
     await courseToEnrollIn.save();
     await enrollingStudent.save();
 
-    console.log(`PEOPLE ENROLLED IN ${courseToEnrollIn.title}: `, courseToEnrollIn.peopleEnrolled)
 
     return res.status(200).send({
       success: true,
@@ -177,6 +182,8 @@ export const markSkillAsCompleted = async (req, res) => {
       course: courseId,
     });
 
+
+
     if (!progress) {
       return res.status(200).send({
         success: false,
@@ -184,43 +191,40 @@ export const markSkillAsCompleted = async (req, res) => {
       });
     }
 
-    const course = await Course.findById(courseId);
-    const totalSkillsCount = course.topics.reduce(
-      (sum, topic) => sum + topic.skills.length,
-      0
-    );
-    if (progress.completedSkills.length === totalSkillsCount) {
-      progress.isCompleted = true;
-    }
-    if (!course) {
+    // Use the snapshotted course data instead of fetching the current course
+    const snapshottedCourse = progress.snapshottedCourse;
+    if (!snapshottedCourse) {
       return res.status(404).send({
         success: false,
-        msg: "Course not found",
+        msg: "Course snapshot not found",
       });
     }
 
-    const skillExists = course.topics.some((topic) =>
-      topic.skills.some((skill) =>
-        skill._id.equals(new mongoose.Types.ObjectId(skillId))
-      )
+    const totalSkillsCount = snapshottedCourse.topics.reduce(
+      (sum, topic) => sum + topic.skills.length,
+      0
     );
+
+    if (progress.completedSkills.length === totalSkillsCount) {
+      progress.isCompleted = true;
+    }
+
+    const skillExists = snapshottedCourse.topics.some((topic) =>
+      topic.skills.some((skill) =>
+        skill._id.equals(new mongoose.Types.ObjectId(skillId))));
 
     if (!skillExists) {
       return res.status(404).send({
         success: false,
-        msg: "Skill not found in this course",
+        msg: "Skill not found in your version of this course",
       });
     }
-
 
     // Update last visited skill
     progress.lastVisitedSkill = new mongoose.Types.ObjectId(skillId);
 
-
     // Only add to completedSkills if not already there
-    if (
-      !progress.completedSkills.includes(new mongoose.Types.ObjectId(skillId))
-    ) {
+    if (!progress.completedSkills.some(id => id.equals(new mongoose.Types.ObjectId(skillId)))) {
       progress.completedSkills.push(new mongoose.Types.ObjectId(skillId));
     }
 
@@ -241,19 +245,53 @@ export const markSkillAsCompleted = async (req, res) => {
   }
 };
 
+
 export const getSingleCourseDetails = async (req, res) => {
   try {
-    if (!req.user.userId)
-      return res
-        .status(401)
-        .send({ success: false, msg: "Unauthorized Access" });
+    if (!req.user.userId) {
+      return res.status(401).send({ success: false, msg: "Unauthorized Access" });
+    }
+
     const { id } = req.data;
 
-    // check for exsisting course  
+    // 1. First check if user is enrolled (critical change)
+    const progress = await Progress.findOne({
+      student: req.user.userId,
+      course: id
+    });
+
+    // 2. If enrolled, return their snapshotted version
+    if (progress?.snapshottedCourse) {
+      return res.status(200).send({
+        success: true,
+        courseDetails: {
+          ...progress.snapshottedCourse,
+          // Preserve your original response structure
+          creator: {
+            fullName: progress.snapshottedCourse.creator?.fullName,
+            email: progress.snapshottedCourse.creator?.email,
+            profilePicture: progress.snapshottedCourse.creator?.avatar
+          },
+          imageUrl: progress.snapshottedCourse.imageUrl,
+          topics: progress.snapshottedCourse.topics,
+          dateCreated: progress.snapshottedCourse.dateCreated,
+          isPublished: progress.snapshottedCourse.isPublished,
+          quiz: progress.snapshottedCourse.quiz
+        }
+      });
+    }
+
+    // 3. Fallback for non-enrolled users (instructors/admins)
     const requestedCourse = await Course.findById(id).populate({
       path: "creator",
       model: "User",
     });
+
+    if (!requestedCourse) {
+      return res.status(404).send({ success: false, msg: "Course does not exist" });
+    }
+
+    // Your original response format
     const data = {
       title: requestedCourse.title,
       _id: requestedCourse._id,
@@ -266,12 +304,8 @@ export const getSingleCourseDetails = async (req, res) => {
       topics: requestedCourse.topics,
       dateCreated: requestedCourse.dateCreated,
       isPublished: requestedCourse.isPublished,
+      quiz: requestedCourse.quiz
     };
-
-    if (!requestedCourse)
-      return res
-        .status(404)
-        .send({ success: false, msg: "Course does not exsist" });
 
     return res.status(200).send({ success: true, courseDetails: data });
   } catch (err) {
@@ -281,7 +315,8 @@ export const getSingleCourseDetails = async (req, res) => {
 };
 
 export const getCompletedSkills = async (req, res) => {
-  try {
+  
+  try {     
     if (!req.user.userId)
       return res
         .status(401)
@@ -293,16 +328,13 @@ export const getCompletedSkills = async (req, res) => {
     if (!existingAcc)
       return res.status(404).send({ success: false, msg: "Account not found" });
 
-    // Get progress data
+
     const progress = await Progress.findOne({
       student: existingAcc._id,
       course: courseId,
     });
 
-    // Get course data
-    const course = await Course.findById(courseId);
-
-    if (!progress || !course) {
+    if (!progress) {
       return res.status(200).send({
         success: true,
         completedSkills: [],
@@ -310,16 +342,25 @@ export const getCompletedSkills = async (req, res) => {
       });
     }
 
-    // Extract all skills from course
-    const allSkills = course.topics.flatMap((topic) =>
+    // Use the SNAPSHOTTED course data instead of live course
+    const snapshottedCourse = progress.snapshottedCourse;
+    if (!snapshottedCourse) {
+      return res.status(404).send({
+        success: false,
+        msg: "Course snapshot not found"
+      });
+    }
+
+    // Extract all skills from SNAPSHOTTED course
+    const allSkills = snapshottedCourse.topics.flatMap((topic) =>
       topic.skills.map((skill) => ({
-        ...skill.toObject(),
+        ...skill,
         topicId: topic._id,
         topicTitle: topic.title,
       }))
     );
 
-    // Match completed skills with full data
+    // Match completed skills against SNAPSHOTTED course
     const completedSkillsData = allSkills.filter((skill) =>
       progress.completedSkills.some((id) => id.equals(skill._id))
     );
@@ -379,47 +420,76 @@ export const getProgessData = async (req, res) => {
   }
 };
 
+
 export const getEnrolledCourses = async (req, res) => {
   try {
     const progressEntries = await Progress.find({ student: req.user.userId })
-      .populate({
-        path: 'course',
-        populate: {
-          path: 'creator',
-          model: 'User',
-          select: 'fullName email avatar' // Explicitly select fields
+      .populate([
+        {
+          path: 'course',
+          populate: {
+            path: 'creator',
+            model: 'User',
+            select: 'fullName email avatar'
+          }
+        },
+        {
+          path: 'snapshottedCourse',
+          populate: {
+            path: 'topics.skills'
+          }
         }
-      });
+      ])
+      .lean();
 
-    // Filter out entries with missing courses and add null checks
     const courses = progressEntries
-      .filter(entry => entry.course) // Remove entries with null courses
+      .filter(entry => entry.course)
       .map((entry) => {
         const course = entry.course;
+
+        // If no snapshotted course exists, use the current course data
+        const courseData = entry.snapshottedCourse || course;
+
         return {
           _id: course._id,
           title: course.title,
           description: course.description,
           imageUrl: course.imageUrl,
           category: course.category,
-          topics: course.topics || [], // Default empty array if missing
+          topics: course.topics || [],
           creator: {
-            fullName: course.creator?.fullName,
-            email: course.creator?.email,
-            profilePicture: course.creator?.avatar,
+            fullName: course.creator?.fullName || 'Unknown',
+            email: course.creator?.email || '',
+            profilePicture: course.creator?.avatar || '',
           },
+          isPublished: course.isPublished,
           progressData: {
             completedSkills: entry.completedSkills?.map(id => id.toString()) || [],
             isCompleted: entry.isCompleted || false,
             lastVisitedSkill: entry.lastVisitedSkill?.toString(),
+            snapshottedCourse: {
+              ...courseData,
+              _id: courseData._id?.toString(),
+              topics: courseData.topics?.map(topic => ({
+                ...topic,
+                _id: topic._id?.toString(),
+                skills: topic.skills?.map(skill => ({
+                  _id: skill._id?.toString(),
+                  skillTitle: skill.skillTitle,
+                  content: skill.content
+                })) || []
+              })) || [],
+              quiz: courseData.quiz,
+            }
           }
         };
       });
 
+
     res.status(200).send({ courses });
   } catch (err) {
-    console.error(err);
-    res.status(500).json({ msg: 'Server error' });
+    console.error("Failed to fetch enrolled courses:", err);
+    res.status(500).json({ msg: 'Server error', error: err.message });
   }
 };
 
@@ -445,7 +515,6 @@ export const unenrollFromCourse = async (req, res) => {
     course.peopleEnrolled = course.peopleEnrolled.filter((person) => !person.equals(userId))
     await course.save()
 
-    console.log(`NEW PEOPLE ENROLLED AFTER ENROLLMENT IN ${course.title}: `, course.peopleEnrolled)
     res.status(200).json({ msg: "Successfully unenrolled from course" });
   } catch (err) {
     console.error("Unenrollment failed:", err);
@@ -487,6 +556,7 @@ export const getCoursesCreatedBySomeone = async (req, res) => {
           profilePicture: createdCourse?.creator?.avatar,
           email: createdCourse?.creator.email,
         },
+        quiz: createdCourse.quiz,
         enrollments: createdCourse?.enrollments,
         likes: createdCourse?.likes,
         isPublished: createdCourse?.isPublished
@@ -497,6 +567,60 @@ export const getCoursesCreatedBySomeone = async (req, res) => {
     return res.status(200).send({
       success: true, msg: `Fetched ${exsistingCreator?.fullName}'s works successfully`,
       data: formattedCourses?.filter((course) => course?.isPublished)
+    })
+  } catch (err) {
+    console.error(err)
+    return res.status(500).send({ success: false, msg: "Server Error" })
+  }
+}
+
+export const getCreatedCourses = async (req, res) => {
+  try {
+    if (!req.user.userId)
+      return res.status(401).send({ success: false, msg: "Unauthorized Access" })
+
+    const exsistingCreator = await User.findById(req.user.userId)
+      .populate({
+        path: "createdCourses",
+        model: "Course",
+        select: "title description category imageUrl topics dateCreated creator isPublished likes enrollments isArchived",
+        populate: [
+          {
+            path: "creator",
+            model: "User",
+            select: "fullName avatar email"
+          },
+        ]
+      })
+      .select("fullName avatar email createdCourses");
+
+
+    const formattedCourses = exsistingCreator?.createdCourses?.map((createdCourse) => {
+      return {
+        _id: createdCourse?._id,
+        title: createdCourse?.title,
+        description: createdCourse?.description,
+        category: createdCourse?.category,
+        imageUrl: createdCourse?.imageUrl,
+        topics: createdCourse?.topics,
+        dateCreated: createdCourse?.dateCreated,
+        creator: {
+          _id: createdCourse.creator?._id,
+          fullName: createdCourse?.creator?.fullName,
+          profilePicture: createdCourse?.creator?.avatar,
+          email: createdCourse?.creator.email,
+        },
+        quiz: createdCourse.quiz,
+        isArchived: createdCourse.isArchived,
+        enrollments: createdCourse?.enrollments,
+        likes: createdCourse?.likes,
+        isPublished: createdCourse?.isPublished
+      }
+    })
+
+    return res.status(200).send({
+      success: true, msg: `Fetched ${exsistingCreator?.fullName}'s works successfully`,
+      data: formattedCourses
     })
   } catch (err) {
     console.error(err)
@@ -629,6 +753,7 @@ export const publishCourse = async (req, res) => {
           fullName: course?.creator?.fullName,
           profilePicture: course?.creator?.avatar,
         },
+        quiz: course?.quiz,
         isPublished: course?.isPublished,
         likes: course?.likes,
       }
@@ -684,6 +809,7 @@ export const draftCourse = async (req, res) => {
           email: course?.creator?.email,
           profilePicture: course?.creator?.avatar,
         },
+        quiz: course.quiz,
         isPublished: course?.isPublished,
         likes: course?.likes,
       }
@@ -698,7 +824,7 @@ export const draftCourse = async (req, res) => {
 
 export const deleteCreatedCourse = async (req, res) => {
   try {
-    const { courseId } = req.params; // Should be params, not data
+    const { courseId } = req.params;
     const userId = req.user.userId;
 
     if (!userId) {
@@ -756,6 +882,7 @@ export const deleteCreatedCourse = async (req, res) => {
         email: course?.creator?.email,
         profilePicture: course?.creator?.avatar,
       },
+      quiz: course?.quiz,
       isPublished: course?.isPublished,
       likes: course?.likes,
     }));
@@ -809,6 +936,7 @@ export const getMostPopularCourses = async (req, res) => {
         email: course.creator?.email,
         profilePicture: course.creator?.avatar,
       },
+      quiz: course?.quiz,
       createdCourses: course.creator?.createdCourses,
       isPublished: course?.isPublished,
       likes: course?.likes,
@@ -1007,22 +1135,22 @@ export const getEnrollmentsDetails = async (req, res) => {
     // Structure the data by course with null checks
     const enrollmentsByCourse = user.createdCourses?.map(course => {
       if (!course) return null;
-      
+
       const totalSkills = course.topics?.reduce(
         (sum, topic) => sum + (topic?.skills?.length || 0), 0
       ) || 0;
 
-      const courseProgress = progressRecords.filter(p => 
+      const courseProgress = progressRecords.filter(p =>
         p?.course && course?._id && p.course.equals(course._id)
       );
 
       const students = (course.peopleEnrolled || []).map(student => {
         if (!student) return null;
-        
-        const progress = courseProgress.find(p => 
+
+        const progress = courseProgress.find(p =>
           p?.student?._id && student?._id && p.student._id.equals(student._id)
         );
-        
+
         const completedSkills = progress?.completedSkills?.length || 0;
         const progressPercentage = totalSkills > 0
           ? Math.round((completedSkills / totalSkills) * 100)
@@ -1046,7 +1174,7 @@ export const getEnrollmentsDetails = async (req, res) => {
         students,
         courseLikes: course?.likes || 0
       };
-    }).filter(Boolean); 
+    }).filter(Boolean);
 
     // Flatten the structure with additional checks
     const formattedEnrollments = enrollmentsByCourse.flatMap(course =>
@@ -1076,9 +1204,9 @@ export const getEnrollmentsDetails = async (req, res) => {
 
     // Count active students
     const activeStudentsCount = progressRecords.reduce((count, progress) => {
-      if (progress?.completedSkills?.length > 0 && 
-          progress?.student?._id && 
-          !count.has(progress.student._id.toString())) {
+      if (progress?.completedSkills?.length > 0 &&
+        progress?.student?._id &&
+        !count.has(progress.student._id.toString())) {
         count.add(progress.student._id.toString());
       }
       return count;
@@ -1098,10 +1226,10 @@ export const getEnrollmentsDetails = async (req, res) => {
 
   } catch (err) {
     console.error("Error in getEnrollmentsDetails:", err);
-    return res.status(500).send({ 
-      success: false, 
+    return res.status(500).send({
+      success: false,
       msg: "Server error",
-      error: err.message 
+      error: err.message
     });
   }
 };
@@ -1172,7 +1300,7 @@ export const getFeedbackMetrics = async (req, res) => {
       const feedbackMessages = course.feedbackRoom?.messages || [];
       const enrollments = course.peopleEnrolled.length;
       const likes = course.likes;
-      
+
       // Basic counts
       metrics.overview.totalFeedbackMessages += feedbackMessages.length;
       metrics.overview.totalLikesReceived += likes;
@@ -1198,12 +1326,12 @@ export const getFeedbackMetrics = async (req, res) => {
       metrics.courseBreakdown.push(courseMetrics);
 
       // Track most/least active courses
-      if (!metrics.engagement.mostActiveCourse || 
-          feedbackMessages.length > metrics.engagement.mostActiveCourse.feedbackCount) {
+      if (!metrics.engagement.mostActiveCourse ||
+        feedbackMessages.length > metrics.engagement.mostActiveCourse.feedbackCount) {
         metrics.engagement.mostActiveCourse = courseMetrics;
       }
-      if (!metrics.engagement.leastActiveCourse || 
-          feedbackMessages.length < metrics.engagement.leastActiveCourse.feedbackCount) {
+      if (!metrics.engagement.leastActiveCourse ||
+        feedbackMessages.length < metrics.engagement.leastActiveCourse.feedbackCount) {
         metrics.engagement.leastActiveCourse = courseMetrics;
       }
 
@@ -1236,22 +1364,22 @@ export const getFeedbackMetrics = async (req, res) => {
     }
 
     // Get recent feedback (last 5 messages across all courses)
-    metrics.temporal.recentFeedback = user.createdCourses?.flatMap(course => 
-        (course.feedbackRoom?.messages || [])
-          .map(msg => ({
-            course: course.title,
-            message: msg.content,
-            sender: msg.sender.fullName,
-            date: msg.createdAt,
-            likes: msg.likes,
-          }))
-      )
+    metrics.temporal.recentFeedback = user.createdCourses?.flatMap(course =>
+      (course.feedbackRoom?.messages || [])
+        .map(msg => ({
+          course: course.title,
+          message: msg.content,
+          sender: msg.sender.fullName,
+          date: msg.createdAt,
+          likes: msg.likes,
+        }))
+    )
       .sort((a, b) => new Date(b.date) - new Date(a.date))
       .slice(0, 5);
 
-    return res.status(200).send({ 
-      success: true, 
-      metrics 
+    return res.status(200).send({
+      success: true,
+      metrics
     });
 
   } catch (err) {
@@ -1275,7 +1403,7 @@ export const getMostRecentFeedbacks = async (req, res) => {
           populate: {
             path: "messages",
             model: "FeedbackMessage",
-            options: { 
+            options: {
               sort: { createdAt: -1 },
               limit: 2
             },
@@ -1293,7 +1421,7 @@ export const getMostRecentFeedbacks = async (req, res) => {
     }
 
     // Extract and flatten all feedback messages
-    const allFeedbacks = user.createdCourses?.flatMap(course => 
+    const allFeedbacks = user.createdCourses?.flatMap(course =>
       course.feedbackRoom?.messages?.map(msg => ({
         courseId: course?._id,
         courseTitle: course?.title,
@@ -1310,9 +1438,9 @@ export const getMostRecentFeedbacks = async (req, res) => {
       .sort((a, b) => b.createdAt - a.createdAt)
       .slice(0, 2);
 
-    return res.status(200).send({ 
-      success: true, 
-      feedbacks: recentFeedbacks 
+    return res.status(200).send({
+      success: true,
+      feedbacks: recentFeedbacks
     });
 
   } catch (err) {
@@ -1336,10 +1464,267 @@ export const verifyEnrollment = async (req, res) => {
     });
 
     const isEnrolled = !!progress;
-    
+
     res.status(200).json({ isEnrolled });
   } catch (err) {
     console.error(err);
     res.status(500).json({ isEnrolled: false, error: "Server error" });
   }
 };
+
+export const updateCourseInformation = async (req, res) => {
+  try {
+
+    if (!req.user.userId)
+      return res.status(401).send({ success: false, msg: "Unauthorized Access" })
+
+    const { courseToEditId,
+      title, description, category, isPublished, topics
+    } = req.body;
+
+    const existingCourse = await Course.findById(courseToEditId);
+    if (existingCourse.isPublished) {
+      return res.status(403).send({
+        success: false,
+        msg: "Cannot edit published courses. Switch to draft mode first."
+      });
+    }
+
+    const imageUrl = req.courseImage
+    const parsedStatus = isPublished === "true" ? true : isPublished === "false" ? false : "";
+
+    if ((!title || !description || !category) || (typeof title !== "string" || typeof description !== "string" || typeof category !== "string"))
+      return res.status(400).send({ success: false, msg: "Please provide a title, description and category and make sure they are of the string data type" });
+
+    if (typeof parsedStatus !== "boolean")
+      return res.status(400).send({ success: false, msg: "IsPublished must eiter true/false" })
+
+    if (!imageUrl)
+      return res.status(400).send({ success: false, msg: "An image url must be provided" })
+
+    const parsedTopics = JSON.parse(topics);
+
+
+    const payload = { title, description, category, isPublished: parsedStatus, topics: parsedTopics, version: existingCourse.version + 1 }
+
+    const updatedCourse = await Course.findByIdAndUpdate(
+      courseToEditId,
+      { $set: payload },
+      { new: true, runValidators: true }
+    )
+
+
+    if (!updatedCourse)
+      return res.status(404).send({ success: false, msg: "Course you are trying to update was not found" })
+
+
+    return res.status(200).send({ success: false, msg: "Course updated successfully" });
+  } catch (err) {
+    console.error(err)
+    return res.status(500).send({ success: false, msg: "Server Error" })
+  }
+}
+
+export const archiveCourse = async (req, res) => {
+  try {
+    const { courseId } = req.data;
+    const userId = req.user.userId;
+
+
+    if (!userId) {
+      return res.status(401).send({ success: false, msg: "Unauthorized Access" });
+    }
+
+    // 1. Verify the course exists and belongs to the user
+    const courseToArchive = await Course.findOne({
+      _id: courseId,
+      creator: userId
+    });
+
+    if (!courseToArchive) {
+      return res.status(404).send({
+        success: false,
+        msg: "Course not found or you don't have permission"
+      });
+    }
+
+    // 2. Archive the course
+    const archivedCourse = await Course.findByIdAndUpdate(
+      courseId,
+      {
+        $set: {
+          isArchived: true,
+          isPublished: false
+        }
+      },
+      { new: true } // Return the updated document
+    );
+
+    // 3. Get updated list of non-archived courses
+    const user = await User.findById(userId)
+      .populate({
+        path: "createdCourses",
+        match: { isArchived: false }, // Only show non-archived courses
+        options: { sort: { createdAt: -1 } }
+      });
+
+    return res.status(200).send({
+      success: true,
+      msg: `${archivedCourse.title} has been archived successfully`,
+      updatedCourses: user.createdCourses
+    });
+
+  } catch (err) {
+    console.error(err);
+    return res.status(500).send({
+      success: false,
+      msg: "Server Error",
+      error: err.message
+    });
+  }
+};
+
+export const restoreCourse = async (req, res) => {
+  try {
+    const { courseId } = req.data;
+    const userId = req.user.userId;
+
+    if (!userId) {
+      return res.status(401).send({ success: false, msg: "Unauthorized Access" });
+    }
+
+    const courseToRestore = await Course.findOne({
+      _id: courseId,
+      creator: userId
+    });
+
+
+    if (!courseToRestore) {
+      return res.status(404).send({
+        success: false,
+        msg: "Course not found or you don't have permission"
+      });
+    }
+
+    const restoredCourse = await Course.findByIdAndUpdate(
+      courseId,
+      {
+        $set: {
+          isArchived: false,
+        }
+      },
+      { new: true }
+    );
+
+    return res.status(200).send({ success: false, msg: `${restoredCourse.title} has been restored` })
+  } catch (err) {
+    console.error(err)
+    return res.status(500).send({
+      success: false,
+      msg: "Server Error",
+      error: err.message
+    });
+  }
+}
+
+
+export const getCourseFeedbackMetrics = async (req, res) => {
+  try {
+    if (!req.user.userId) {
+      return res.status(401).send({ success: false, msg: "Unauthorized Access" });
+    }
+
+    const { courseId } = req.params;
+
+    const course = await Course.findById(courseId)
+      .populate({
+        path: "feedbackRoom",
+        model: "FeedbackRoom",
+        populate: {
+          path: "messages",
+          model: "FeedbackMessage",
+          populate: {
+            path: "sender",
+            model: "User",
+            select: "fullName avatar isOnline"
+          }
+        }
+      })
+      .populate({
+        path: "peopleEnrolled",
+        model: "User",
+        select: "fullName"
+      });
+
+    if (!course) {
+      return res.status(404).send({ success: false, msg: "Course not found" });
+    }
+
+    // Check if the requesting user is the course creator
+
+    if (course.creator.toString() !== req.user.userId.toString()) {
+      return res.status(403).send({ success: false, msg: "Not authorized to view this course's metrics" });
+    }
+
+    const feedbackMessages = course.feedbackRoom?.messages || [];
+    const enrollments = course.peopleEnrolled.length;
+    const likes = course.likes;
+
+    // Calculate metrics for this single course
+    const metrics = {
+      overview: {
+        totalFeedbackMessages: feedbackMessages.length,
+        totalLikesReceived: likes,
+        enrollments: enrollments,
+        feedbackRatio: enrollments > 0 ? (feedbackMessages.length / enrollments) * 100 : 0,
+      },
+      sentiment: {
+        positiveFeedbackCount: 0,
+        negativeFeedbackCount: 0,
+        neutralFeedbackCount: 0,
+      },
+      temporal: {
+        feedbackByMonth: {},
+        recentFeedback: feedbackMessages
+          .map(msg => ({
+            content: msg.content,
+            sender: msg.sender.fullName,
+            date: msg.createdAt,
+            likes: msg.likes,
+          }))
+          .sort((a, b) => new Date(b.date) - new Date(a.date))
+          .slice(0, 5),
+      },
+    };
+
+    // Analyze sentiment
+    feedbackMessages.forEach(msg => {
+      const content = msg.content.toLowerCase();
+      if (content.includes('great') || content.includes('awesome') || content.includes('love')) {
+        metrics.sentiment.positiveFeedbackCount++;
+      } else if (content.includes('bad') || content.includes('poor') || content.includes('terrible')) {
+        metrics.sentiment.negativeFeedbackCount++;
+      } else {
+        metrics.sentiment.neutralFeedbackCount++;
+      }
+
+      // Track feedback by month
+      const monthYear = new Date(msg.createdAt).toLocaleString('default', { 
+        month: 'long', 
+        year: 'numeric', 
+        timeZone: 'UTC' 
+      });
+      metrics.temporal.feedbackByMonth[monthYear] = (metrics.temporal.feedbackByMonth[monthYear] || 0) + 1;
+    });
+
+    return res.status(200).send({
+      success: true,
+      metrics
+    });
+
+  } catch (err) {
+    console.error(err);
+    return res.status(500).send({ success: false, msg: "Server error" });
+  }
+};
+
